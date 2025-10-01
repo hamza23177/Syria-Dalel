@@ -4,6 +4,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:untitled2/screens/home/skeleton.dart';
 import '../../constant.dart';
+import '../category/view.dart';
+import '../details/view.dart';
+import '../sub/view.dart';
 import 'bloc.dart';
 import 'event.dart';
 import 'state.dart';
@@ -286,22 +289,32 @@ class CategoryHorizontalList extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12),
         itemBuilder: (context, index) {
           final cat = categories[index];
-          return Container(
-            margin: const EdgeInsets.only(left: 12),
-            child: Column(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    cat.imageUrl ?? '',
-                    fit: BoxFit.cover,
-                    height: 75,
-                    width: 75,
-                  ),
+          return GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => CategoriesScreen(), // شاشة كل الكاتيجوري
                 ),
-                const SizedBox(height: 4),
-                Text(cat.name, style: Theme.of(context).textTheme.bodyMedium),
-              ],
+              );
+            },
+            child: Container(
+              margin: const EdgeInsets.only(left: 12),
+              child: Column(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      cat.imageUrl ?? '',
+                      fit: BoxFit.cover,
+                      height: 75,
+                      width: 75,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(cat.name, style: Theme.of(context).textTheme.bodyMedium),
+                ],
+              ),
             ),
           );
         },
@@ -324,24 +337,37 @@ class SubCategoryList extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12),
         itemBuilder: (context, index) {
           final sub = subCategories[index];
-          return Container(
-            width: MediaQuery.of(context).size.width * 0.45,
-            margin: const EdgeInsets.only(left: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    sub.imageUrl ?? '',
-                    fit: BoxFit.cover,
-                    height: 130,
-                    width: double.infinity,
+          return GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SubCategoryScreen(
+                    categoryId: sub.category.id,
+                    categoryName: sub.category.name,
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(sub.name, style: Theme.of(context).textTheme.bodyLarge),
-              ],
+              );
+            },
+            child: Container(
+              width: MediaQuery.of(context).size.width * 0.45,
+              margin: const EdgeInsets.only(left: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      sub.imageUrl ?? '',
+                      fit: BoxFit.cover,
+                      height: 130,
+                      width: double.infinity,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(sub.name, style: Theme.of(context).textTheme.bodyLarge),
+                ],
+              ),
             ),
           );
         },
@@ -396,17 +422,16 @@ class ProductGrid extends StatelessWidget {
       ),
       itemBuilder: (ctx, i) {
         final product = products[i];
-        return ProductCard(name: product.name, image: product.imageUrl ?? '');
+        return ProductCard(product: product); // ✅ نمرر الـ Product كامل
       },
     );
   }
 }
 
-class ProductCard extends StatelessWidget {
-  final String name;
-  final String image;
 
-  const ProductCard({required this.name, required this.image});
+class ProductCard extends StatelessWidget {
+  final Product product;
+  const ProductCard({required this.product});
 
   @override
   Widget build(BuildContext context) {
@@ -420,17 +445,24 @@ class ProductCard extends StatelessWidget {
           Expanded(
             child: ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-              child: Image.network(image, fit: BoxFit.cover),
+              child: Image.network(product.imageUrl, fit: BoxFit.cover),
             ),
           ),
           Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Text(name, style: Theme.of(context).textTheme.bodyLarge),
+            child: Text(product.name, style: Theme.of(context).textTheme.bodyLarge),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
             child: ElevatedButton(
-              onPressed: () {},
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ServiceDetailScreen(serviceId: product.id), // ✅ الآن الـ id متوفر
+                  ),
+                );
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.accent,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -443,3 +475,4 @@ class ProductCard extends StatelessWidget {
     );
   }
 }
+
