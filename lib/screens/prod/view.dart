@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../models/service_model.dart';
+import '../details/view.dart';
 import 'bloc.dart';
 import 'event.dart';
 import 'state.dart';
@@ -103,7 +104,12 @@ class _ServiceScreenState extends State<ServiceScreen>
                           offset: Offset(0, _animation2.value),
                           child: InkWell(
                             onTap: () {
-                              /// هنا تعمل نفيجيشن للتفاصيل إذا حبيت
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ServiceDetailScreen(serviceId: service.id),
+                                ),
+                              );
                             },
                             splashColor: Colors.transparent,
                             highlightColor: Colors.transparent,

@@ -21,4 +21,14 @@ class ServiceApi {
     final List data = response.data['data'];
     return data.map((e) => ServiceModel.fromJson(e)).toList();
   }
+
+  Future<ServiceModel> fetchServiceDetails(int id) async {
+    final response = await dio.get("http://10.184.121.64:8000/api/user/product/$id");
+
+    if (response.statusCode == 200) {
+      return ServiceModel.fromJson(response.data);
+    } else {
+      throw Exception("فشل جلب تفاصيل الخدمة");
+    }
+  }
 }
