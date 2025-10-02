@@ -35,7 +35,9 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
   }
 
   Future<void> _launchMaps(String address) async {
-    final Uri url = Uri.parse("https://www.google.com/maps/search/?api=1&query=$address");
+    final Uri url = Uri.parse(
+      "https://www.google.com/maps/search/?api=1&query=$address",
+    );
     if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
     }
@@ -61,10 +63,6 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
     });
   }
 
-
-
-
-
   @override
   void dispose() {
     _timer?.cancel();
@@ -72,14 +70,15 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
     super.dispose();
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: BlocProvider(
-        create: (_) => ServiceBloc(ServiceApi())..add(LoadServiceDetails(widget.serviceId)),
+        create:
+            (_) =>
+                ServiceBloc(ServiceApi())
+                  ..add(LoadServiceDetails(widget.serviceId)),
         child: Scaffold(
           appBar: AppBar(
             title: const Text("تفاصيل الخدمة"),
@@ -96,7 +95,8 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                   if (state.service.imageUrl2 != null) state.service.imageUrl2!,
                   if (state.service.imageUrl3 != null) state.service.imageUrl3!,
                 ];
-                if (_timer == null) _startAutoScroll(); // نشغل التمرير بعد تحميل الصور
+                if (_timer == null)
+                  _startAutoScroll(); // نشغل التمرير بعد تحميل الصور
                 return _buildDetails(context, state.service);
               } else if (state is ServiceError) {
                 return Center(child: Text("خطأ: ${state.message}"));
@@ -147,18 +147,25 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                 const SizedBox(height: 12),
 
                 // الوصف
-                if (service.description != null && service.description!.isNotEmpty)
+                if (service.description != null &&
+                    service.description!.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: Text(
                       service.description!,
-                      style: const TextStyle(color: AppColors.textLight, fontSize: 14),
+                      style: const TextStyle(
+                        color: AppColors.textLight,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
 
                 // العنوان - يفتح الخرائط
                 InkWell(
-                  onTap: () => _launchMaps("${service.address}, ${service.area}, ${service.governorate}"),
+                  onTap:
+                      () => _launchMaps(
+                        "${service.address}, ${service.area}, ${service.governorate}",
+                      ),
                   child: Row(
                     children: [
                       const Icon(Icons.location_on, color: AppColors.primary),
@@ -166,7 +173,10 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                       Expanded(
                         child: Text(
                           "${service.address}, ${service.area}, ${service.governorate}",
-                          style: const TextStyle(color: AppColors.textLight, fontSize: 14),
+                          style: const TextStyle(
+                            color: AppColors.textLight,
+                            fontSize: 14,
+                          ),
                         ),
                       ),
                     ],
@@ -197,11 +207,19 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                 // باقي المواصفات
                 _buildAttributeRow(Icons.category, "الفئة", service.category),
                 const SizedBox(height: 8),
-                _buildAttributeRow(Icons.layers, "الفئة الفرعية", service.subcategory),
+                _buildAttributeRow(
+                  Icons.layers,
+                  "الفئة الفرعية",
+                  service.subcategory,
+                ),
                 const SizedBox(height: 8),
                 _buildAttributeRow(Icons.map, "المنطقة", service.area),
                 const SizedBox(height: 8),
-                _buildAttributeRow(Icons.location_city, "المحافظة", service.governorate),
+                _buildAttributeRow(
+                  Icons.location_city,
+                  "المحافظة",
+                  service.governorate,
+                ),
               ],
             ),
           ),
@@ -210,7 +228,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
     );
   }
 
-// دالة مساعدة لعرض كل واصفة
+  // دالة مساعدة لعرض كل واصفة
   Widget _buildAttributeRow(IconData icon, String label, String value) {
     return Row(
       children: [
@@ -237,26 +255,29 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => Scaffold(
-                    backgroundColor: Colors.black,
-                    body: PhotoViewGallery.builder(
-                      itemCount: images.length,
-                      builder: (context, index) {
-                        return PhotoViewGalleryPageOptions(
-                          imageProvider: NetworkImage(images[index]),
-                          minScale: PhotoViewComputedScale.contained,
-                          maxScale: PhotoViewComputedScale.covered * 3,
-                        );
-                      },
-                      pageController: PageController(initialPage: _currentPage),
-                      onPageChanged: (index) {
-                        setState(() {
-                          _currentPage = index;
-                        });
-                      },
-                      scrollPhysics: const BouncingScrollPhysics(),
-                    ),
-                  ),
+                  builder:
+                      (_) => Scaffold(
+                        backgroundColor: Colors.black,
+                        body: PhotoViewGallery.builder(
+                          itemCount: images.length,
+                          builder: (context, index) {
+                            return PhotoViewGalleryPageOptions(
+                              imageProvider: NetworkImage(images[index]),
+                              minScale: PhotoViewComputedScale.contained,
+                              maxScale: PhotoViewComputedScale.covered * 3,
+                            );
+                          },
+                          pageController: PageController(
+                            initialPage: _currentPage,
+                          ),
+                          onPageChanged: (index) {
+                            setState(() {
+                              _currentPage = index;
+                            });
+                          },
+                          scrollPhysics: const BouncingScrollPhysics(),
+                        ),
+                      ),
                 ),
               );
             },
@@ -308,6 +329,4 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
       ],
     );
   }
-
-
 }
