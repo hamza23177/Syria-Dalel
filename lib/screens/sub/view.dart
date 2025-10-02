@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:untitled2/screens/sub/sub_category_skeleton.dart';
 import '../../services/service_api.dart';
 import '../../services/sub_category_service.dart';
 import '../prod/bloc.dart';
@@ -88,7 +89,13 @@ class _SubCategoryScreenState extends State<SubCategoryScreen>
               BlocBuilder<SubCategoryBloc, SubCategoryState>(
                 builder: (context, state) {
                   if (state is SubCategoryLoading) {
-                    return const Center(child: CircularProgressIndicator());
+                    return ListView.builder(
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: 6, // عدد السكلتونات
+                      itemBuilder: (context, index) {
+                        return SubCategorySkeleton(width: _w);
+                      },
+                    );
                   } else if (state is SubCategoryLoaded) {
                     if (state.subCategories.isEmpty) {
                       return const Center(child: Text("لا توجد أقسام فرعية"));

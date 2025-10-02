@@ -7,7 +7,7 @@ class ServiceModel {
   final String category;
   final String area;
   final String governorate;
-  final String? discountPrice;
+  final String? description;
   final String? imageUrl;
   final String? imageUrl2;
   final String? imageUrl3;
@@ -21,7 +21,7 @@ class ServiceModel {
     required this.category,
     required this.area,
     required this.governorate,
-    this.discountPrice,
+    this.description,
     this.imageUrl,
     this.imageUrl2,
     this.imageUrl3,
@@ -37,7 +37,7 @@ class ServiceModel {
       category: json['category'],
       area: json['area'],
       governorate: json['governorate'],
-      discountPrice: json['discount_price'],
+      description: json['description'],
       imageUrl: json['image_url'],
       imageUrl2: json['image_url_2'],
       imageUrl3: json['image_url_3'],

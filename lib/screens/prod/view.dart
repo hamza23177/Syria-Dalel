@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../models/service_model.dart';
 import '../details/view.dart';
+import '../sub/sub_category_skeleton.dart';
 import 'bloc.dart';
 import 'event.dart';
 import 'state.dart';
@@ -86,7 +87,13 @@ class _ServiceScreenState extends State<ServiceScreen>
             BlocBuilder<ServiceBloc, ServiceState>(
               builder: (context, state) {
                 if (state is ServiceLoading) {
-                  return const Center(child: CircularProgressIndicator());
+                  return ListView.builder(
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: 6, // عدد السكلتونات
+                    itemBuilder: (context, index) {
+                      return SubCategorySkeleton(width: _w);
+                    },
+                  );
                 } else if (state is ServiceLoaded) {
                   if (state.services.isEmpty) {
                     return const Center(child: Text("لا توجد خدمات متاحة"));

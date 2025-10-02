@@ -17,6 +17,7 @@ import 'state.dart';
 import '../../services/category_service.dart';
 import '../../models/category_model.dart';
 import '../../constant.dart';
+import 'package:shimmer/shimmer.dart';
 
 class CategoriesScreen extends StatefulWidget {
   const CategoriesScreen({super.key});
@@ -92,6 +93,53 @@ class _CategoriesScreenState extends State<CategoriesScreen>
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  Widget categorySkeleton(double _w) {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade300,
+      highlightColor: Colors.grey.shade100,
+      child: AspectRatio(
+        aspectRatio: 3 / 4,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // الصورة الوهمية
+              Expanded(
+                flex: 6,
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                  ),
+                ),
+              ),
+              // النصوص الوهمية
+              Expanded(
+                flex: 4,
+                child: Padding(
+                  padding: EdgeInsets.all(_w / 40),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Container(height: 14, width: _w * 0.4, color: Colors.white),
+                      Container(height: 12, width: _w * 0.6, color: Colors.white),
+                      Container(height: 12, width: _w * 0.3, color: Colors.white),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -259,40 +307,59 @@ class _CategoriesScreenState extends State<CategoriesScreen>
 
                 // GridView الكاتيغوريات
                 Expanded(
-                  child: filteredCategories.isEmpty
-                      ? Center(
-                    child: Text(
-                      "لا توجد فئات لهذه المنطقة",
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyLarge
-                          ?.copyWith(color: AppColors.primary),
-                    ),
-                  )
-                      : GridView.builder(
-                    padding: const EdgeInsets.all(12),
-                    physics: const BouncingScrollPhysics(),
-                    gridDelegate:
-                    const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: 0.72,
-                    ),
-                    itemCount: filteredCategories.length + 1,
-                    itemBuilder: (context, index) {
-                      if (index < filteredCategories.length) {
-                        final category = filteredCategories[index];
-                        return card(category);
+                  child: BlocBuilder<CategoryBloc, CategoryState>(
+                    builder: (context, state) {
+                      if (state is CategoryLoading && allCategories.isEmpty) {
+                        // ✅ Skeleton Grid أثناء التحميل
+                        return GridView.builder(
+                          padding: const EdgeInsets.all(12),
+                          physics: const BouncingScrollPhysics(),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: 0.72,
+                          ),
+                          itemCount: 6, // عدد الكروت الوهمية
+                          itemBuilder: (_, __) => categorySkeleton(_w),
+                        );
+                      } else if (filteredCategories.isEmpty) {
+                        return Center(
+                          child: Text(
+                            "لا توجد فئات لهذه المنطقة",
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyLarge
+                                ?.copyWith(color: AppColors.primary),
+                          ),
+                        );
                       } else {
-                        final bloc = context.read<CategoryBloc>();
-                        final state = bloc.state;
-                        if (state is CategoryLoaded &&
-                            state.response.meta.currentPage < state.response.meta.lastPage) {
-                          return const Center(child: CircularProgressIndicator());
-                        } else {
-                          return const SizedBox();
-                        }
+                        return GridView.builder(
+                          padding: const EdgeInsets.all(12),
+                          physics: const BouncingScrollPhysics(),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: 0.72,
+                          ),
+                          itemCount: filteredCategories.length + 1,
+                          itemBuilder: (context, index) {
+                            if (index < filteredCategories.length) {
+                              final category = filteredCategories[index];
+                              return card(category);
+                            } else {
+                              final bloc = context.read<CategoryBloc>();
+                              final state = bloc.state;
+                              if (state is CategoryLoaded &&
+                                  state.response.meta.currentPage < state.response.meta.lastPage) {
+                                return const Center(child: CircularProgressIndicator());
+                              } else {
+                                return const SizedBox();
+                              }
+                            }
+                          },
+                        );
                       }
                     },
                   ),
