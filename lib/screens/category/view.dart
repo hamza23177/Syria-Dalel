@@ -207,7 +207,17 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                         BlocBuilder<GovernorateBloc, GovernorateState>(
                           builder: (context, state) {
                             if (state is GovernorateLoading) {
-                              return const Center(child: CircularProgressIndicator());
+                              return Shimmer.fromColors(
+                                baseColor: Colors.grey.shade300,
+                                highlightColor: Colors.grey.shade100,
+                                child: Container(
+                                  height: 50,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              );
                             } else if (state is GovernorateLoaded) {
                               governorates = state.governorates;
                               // ✅ أول مرة نحمل نختار أول محافظة
@@ -255,7 +265,17 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                         BlocBuilder<AreaBloc, AreaState>(
                           builder: (context, state) {
                             if (state is AreaLoading) {
-                              return const Center(child: CircularProgressIndicator());
+                              return Shimmer.fromColors(
+                                baseColor: Colors.grey.shade300,
+                                highlightColor: Colors.grey.shade100,
+                                child: Container(
+                                  height: 50,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              );
                             } else if (state is AreaLoaded) {
                               areas = state.areas.cast<Area>();
 

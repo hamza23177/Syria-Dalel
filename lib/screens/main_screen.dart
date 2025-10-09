@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../constant.dart';
+import '../services/ad_service.dart';
+import 'ads/bloc.dart';
+import 'ads/event.dart';
+import 'ads/view.dart';
 import 'category/view.dart';
 import 'home/view.dart';
 
@@ -21,8 +26,11 @@ class _PersistentBtmBarExampleState extends State<PersistentBtmBarExample> {
     _screens = [
       HomeScreen(),
       CategoriesScreen(),
-      const AdsScreen(),
-      const ContactScreen(),
+      BlocProvider(
+        create: (_) => AdBloc(AdService())..add(FetchAdsEvent()),
+        child: AdCarouselView(),
+      ),
+    const ContactScreen(),
     ];
   }
 

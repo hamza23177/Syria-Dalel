@@ -2,7 +2,7 @@
 import 'package:dio/dio.dart';
 
 import '../models/sub_category_model.dart';
-
+import '../constant.dart';
 
 class SubCategoryService {
   final Dio _dio = Dio();
@@ -14,7 +14,7 @@ class SubCategoryService {
     String? name,
   }) async {
     final response = await _dio.get(
-      'http://10.184.121.64:8000/api/user/subCategories',
+      '/user/subCategories',
       queryParameters: {
         'category_id': categoryId,
         'page': page,

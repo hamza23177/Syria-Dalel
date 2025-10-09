@@ -45,6 +45,8 @@ dependencies:
   hidable: ^1.0.6
   url_launcher: ^6.3.2
   photo_view: ^0.15.0
+  cached_network_image: ^3.4.1
+  animate_do: ^4.2.0
 
 dev_dependencies:
   flutter_test:

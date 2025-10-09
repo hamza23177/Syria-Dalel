@@ -23,3 +23,7 @@ class AppColors {
 class AppFonts {
   static const String primaryFont = "Cairo";
 }
+
+class ApiConstants {
+  static const String baseUrl = "http://10.71.23.64:8000/api";
+}

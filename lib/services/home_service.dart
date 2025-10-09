@@ -1,12 +1,13 @@
 import 'package:dio/dio.dart';
 import '../models/home_model.dart';
+import '../constant.dart';
 
 class HomeService {
-  final Dio dio = Dio();
+  final Dio dio = Dio(BaseOptions(baseUrl: ApiConstants.baseUrl));
 
   Future<HomeData> fetchHomeData({int perPage = 10}) async {
     final response = await dio.get(
-      'http://10.184.121.64:8000/api/user/home',
+      '/user/home',
       queryParameters: {'perPage': perPage},
     );
 

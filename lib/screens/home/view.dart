@@ -4,6 +4,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:untitled2/screens/home/skeleton.dart';
 import '../../constant.dart';
+import '../../services/ad_service.dart';
+import '../ads/bloc.dart';
+import '../ads/event.dart';
+import '../ads/view.dart';
 import '../category/view.dart';
 import '../details/view.dart';
 import '../sub/view.dart';
@@ -111,25 +115,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // --- Hero Carousel ---
-                      CarouselSlider(
-                        options: CarouselOptions(
-                          height: 200,
-                          autoPlay: true,
-                          enlargeCenterPage: true,
-                          viewportFraction: 0.9,
-                        ),
-                        items: [
-                          'assets/images/logo.png',
-                          'assets/images/logo.png',
-                          'assets/images/logo.png',
-                        ].map((path) {
-                          return ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            child: Image.asset(path, fit: BoxFit.cover, width: double.infinity),
-                          );
-                        }).toList(),
-                      ),
-                      const SizedBox(height: 16),
+                      BlocProvider(
+                        create: (_) => AdBloc(AdService())..add(FetchAdsEvent()),
+                        child: const AdCarouselView(),
+                      ),// ✅ هنا نضع الإعلان الاحترافي
+                      const SizedBox(height: 24),
 
                       // --- Dropdown Filters ---
                       Padding(

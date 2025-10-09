@@ -1,8 +1,9 @@
 import 'package:dio/dio.dart';
 import '../../models/service_model.dart';
+import '../constant.dart';
 
 class ServiceApi {
-  final Dio dio = Dio(BaseOptions(baseUrl: "http://10.184.121.64:8000/api/user/"));
+  final Dio dio = Dio(BaseOptions(baseUrl: "${ApiConstants.baseUrl}/user"));
 
   Future<List<ServiceModel>> fetchServices({
     int perPage = 10,
@@ -10,7 +11,7 @@ class ServiceApi {
     int? subCategoryId,
   }) async {
     final response = await dio.get(
-      "product",
+      "/product",
       queryParameters: {
         "perPage": perPage,
         "name": name ?? "",
@@ -23,7 +24,7 @@ class ServiceApi {
   }
 
   Future<ServiceModel> fetchServiceDetails(int id) async {
-    final response = await dio.get("http://10.184.121.64:8000/api/user/product/$id");
+    final response = await dio.get("/product/$id");
 
     if (response.statusCode == 200) {
       return ServiceModel.fromJson(response.data);
