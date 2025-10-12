@@ -3,28 +3,34 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/ad_model.dart';
 import '../../constant.dart';
+import 'package:carousel_slider/carousel_slider.dart';
 
-class AdDetailsPage extends StatelessWidget {
+class AdDetailsPage extends StatefulWidget {
   final AdModel ad;
 
   const AdDetailsPage({super.key, required this.ad});
 
-  // فتح تطبيق الهاتف
+  @override
+  State<AdDetailsPage> createState() => _AdDetailsPageState();
+}
+
+class _AdDetailsPageState extends State<AdDetailsPage> {
+  int currentIndex = 0;
+
   Future<void> _callPhone(String phone) async {
     final Uri uri = Uri(scheme: 'tel', path: phone);
-      await launchUrl(uri);
+    await launchUrl(uri);
   }
 
-  // فتح تطبيق الخرائط
   Future<void> _openMap(String address) async {
     final Uri uri = Uri.parse(
         'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}');
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   @override
   Widget build(BuildContext context) {
+    final ad = widget.ad;
     final textTheme = Theme.of(context).textTheme;
 
     return Directionality(
@@ -49,24 +55,92 @@ class AdDetailsPage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Hero(
-                tag: "ad_${ad.id}",
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: CachedNetworkImage(
-                    imageUrl: ad.imageUrl ?? "",
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: 240,
-                    placeholder: (context, url) => Container(
-                      color: Colors.grey[200],
+              // ✅ معرض الصور مع انتقال إلى العرض الكامل
+              if (ad.images.isNotEmpty)
+                Column(
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          PageRouteBuilder(
+                            opaque: false,
+                            transitionDuration:
+                            const Duration(milliseconds: 400),
+                            pageBuilder: (_, __, ___) => FullScreenImageViewer(
+                              images: ad.images,
+                              initialIndex: currentIndex,
+                            ),
+                          ),
+                        );
+                      },
+                      child: Stack(
+                        alignment: Alignment.bottomCenter,
+                        children: [
+                          CarouselSlider.builder(
+                            itemCount: ad.images.length,
+                            itemBuilder: (context, index, realIndex) {
+                              final image = ad.images[index];
+                              return Hero(
+                                tag: 'ad_image_${ad.id}_$index',
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: CachedNetworkImage(
+                                    imageUrl: image.url,
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    placeholder: (context, url) => Container(
+                                      color:
+                                      AppColors.background.withOpacity(0.2),
+                                    ),
+                                    errorWidget: (context, url, error) =>
+                                    const Icon(Icons.error),
+                                  ),
+                                ),
+                              );
+                            },
+                            options: CarouselOptions(
+                              height: 280,
+                              enlargeCenterPage: true,
+                              autoPlay: true,
+                              viewportFraction: 1.0,
+                              onPageChanged: (index, reason) {
+                                setState(() => currentIndex = index);
+                              },
+                            ),
+                          ),
+                          // ✅ المؤشر السفلي (Dots)
+                          Positioned(
+                            bottom: 10,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: List.generate(
+                                ad.images.length,
+                                    (index) => AnimatedContainer(
+                                  duration:
+                                  const Duration(milliseconds: 400),
+                                  margin: const EdgeInsets.symmetric(
+                                      horizontal: 4),
+                                  width: currentIndex == index ? 22 : 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    color: currentIndex == index
+                                        ? AppColors.primary
+                                        : Colors.white.withOpacity(0.5),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    errorWidget: (context, url, error) =>
-                    const Icon(Icons.broken_image, size: 60),
-                  ),
+                  ],
                 ),
-              ),
+
               const SizedBox(height: 20),
+
               Text(
                 ad.title ?? "",
                 style: textTheme.titleLarge?.copyWith(
@@ -82,6 +156,7 @@ class AdDetailsPage extends StatelessWidget {
                   color: AppColors.textDark,
                 ),
               ),
+
               const SizedBox(height: 24),
 
               // رقم الهاتف
@@ -116,13 +191,12 @@ class AdDetailsPage extends StatelessWidget {
 
               const SizedBox(height: 40),
 
-              // زر الاتصال الآن
               Center(
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
-                    padding:
-                    const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 40, vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -196,6 +270,104 @@ class AdDetailsPage extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+//////////////////////////////////////////////////////////
+/// ✅ عرض الصور بالحجم الكامل (Lightbox Modern Gallery)
+//////////////////////////////////////////////////////////
+class FullScreenImageViewer extends StatefulWidget {
+  final List<AdImage> images;
+  final int initialIndex;
+
+  const FullScreenImageViewer({
+    super.key,
+    required this.images,
+    required this.initialIndex,
+  });
+
+  @override
+  State<FullScreenImageViewer> createState() => _FullScreenImageViewerState();
+}
+
+class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
+  late PageController _controller;
+  late int currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    currentIndex = widget.initialIndex;
+    _controller = PageController(initialPage: currentIndex);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black.withOpacity(0.95),
+      body: Stack(
+        alignment: Alignment.center,
+        children: [
+          PageView.builder(
+            controller: _controller,
+            onPageChanged: (i) => setState(() => currentIndex = i),
+            itemCount: widget.images.length,
+            itemBuilder: (context, index) {
+              return Hero(
+                tag: 'ad_image_${widget.images[index].id}_$index',
+                child: InteractiveViewer(
+                  child: CachedNetworkImage(
+                    imageUrl: widget.images[index].url,
+                    fit: BoxFit.contain,
+                    placeholder: (context, url) => const Center(
+                      child:
+                      CircularProgressIndicator(color: AppColors.primary),
+                    ),
+                    errorWidget: (context, url, error) => const Icon(
+                      Icons.broken_image,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+
+          // ✅ نقاط التمرير (Dots)
+          Positioned(
+            bottom: 40,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(widget.images.length, (index) {
+                bool selected = index == currentIndex;
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  margin: const EdgeInsets.symmetric(horizontal: 5),
+                  width: selected ? 20 : 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? AppColors.primary
+                        : Colors.white.withOpacity(0.4),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                );
+              }),
+            ),
+          ),
+
+          // زر الإغلاق
+          Positioned(
+            top: 40,
+            right: 20,
+            child: IconButton(
+              icon: const Icon(Icons.close, color: Colors.white, size: 30),
+              onPressed: () => Navigator.pop(context),
             ),
           ),
         ],

@@ -9,6 +9,7 @@ import 'state.dart';
 import '../../models/ad_model.dart';
 import '../../constant.dart';
 
+
 class AdCarouselView extends StatefulWidget {
   const AdCarouselView({super.key});
 
@@ -71,7 +72,7 @@ class _AdCarouselViewState extends State<AdCarouselView> {
                             children: [
                               // الصورة
                               CachedNetworkImage(
-                                imageUrl: ad.imageUrl ?? "",
+                                imageUrl: ad.firstImageUrl ?? "",
                                 fit: BoxFit.cover,
                                 placeholder: (context, url) => Container(
                                   color: AppColors.background.withOpacity(0.2),
@@ -121,7 +122,32 @@ class _AdCarouselViewState extends State<AdCarouselView> {
                                   ),
                                 ),
                               ),
-
+                              if (ad.images.length > 1)
+                                Positioned(
+                                  bottom: 12,
+                                  right: 12,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.6),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.photo_library, color: Colors.white, size: 16),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          "${ad.images.length} صور",
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
                               // النص الإرشادي مع اختفاء تدريجي
                               Align(
                                 alignment: Alignment.bottomCenter,
