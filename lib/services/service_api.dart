@@ -27,7 +27,8 @@ class ServiceApi {
     final response = await dio.get("/product/$id");
 
     if (response.statusCode == 200) {
-      return ServiceModel.fromJson(response.data);
+      final data = response.data['data']; // ✅ استخراج الـ data الحقيقي
+      return ServiceModel.fromJson(data);
     } else {
       throw Exception("فشل جلب تفاصيل الخدمة");
     }

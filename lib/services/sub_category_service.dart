@@ -5,7 +5,7 @@ import '../models/sub_category_model.dart';
 import '../constant.dart';
 
 class SubCategoryService {
-  final Dio _dio = Dio();
+  final Dio _dio = Dio(BaseOptions(baseUrl: ApiConstants.baseUrl));
 
   Future<SubCategoryResponse> fetchSubCategories({
     required int categoryId,

@@ -1,20 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../services/service_api.dart';
+import 'package:carousel_slider/carousel_slider.dart';
 import '../../models/service_model.dart';
+import '../../services/service_api.dart';
+import '../../constant.dart';
 import 'bloc.dart';
 import 'event.dart';
 import 'state.dart';
-import '../../constant.dart';
-import 'dart:async';
-import 'package:carousel_slider/carousel_slider.dart';
-import 'package:photo_view/photo_view.dart';
-import 'package:photo_view/photo_view_gallery.dart';
 
 class ServiceDetailScreen extends StatefulWidget {
   final int serviceId;
-
   const ServiceDetailScreen({super.key, required this.serviceId});
 
   @override
@@ -22,84 +19,252 @@ class ServiceDetailScreen extends StatefulWidget {
 }
 
 class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
-  final PageController _pageController = PageController();
-  int _currentPage = 0;
-  Timer? _timer;
-  List<String> images = [];
+  int currentIndex = 0;
 
-  Future<void> _launchPhone(String phone) async {
-    final Uri url = Uri(scheme: 'tel', path: phone);
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url);
-    }
+  Future<void> _callPhone(String phone) async {
+    final Uri uri = Uri(scheme: 'tel', path: phone);
+    await launchUrl(uri);
   }
 
-  Future<void> _launchMaps(String address) async {
-    final Uri url = Uri.parse(
-      "https://www.google.com/maps/search/?api=1&query=$address",
-    );
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    }
-  }
-
-  void _startAutoScroll() {
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 3), (Timer timer) {
-      if (_pageController.hasClients && images.isNotEmpty) {
-        int nextPage = _currentPage + 1;
-        if (nextPage >= images.length) {
-          nextPage = 0; // loop
-        }
-        _pageController.animateToPage(
-          nextPage,
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.easeInOut,
-        );
-        setState(() {
-          _currentPage = nextPage;
-        });
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    _pageController.dispose();
-    super.dispose();
+  Future<void> _openMap(String address) async {
+    final Uri uri = Uri.parse(
+        'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}');
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
     return Directionality(
       textDirection: TextDirection.rtl,
       child: BlocProvider(
-        create:
-            (_) =>
-                ServiceBloc(ServiceApi())
-                  ..add(LoadServiceDetails(widget.serviceId)),
+        create: (_) =>
+        ServiceBloc(ServiceApi())..add(LoadServiceDetails(widget.serviceId)),
         child: Scaffold(
+          backgroundColor: AppColors.background,
           appBar: AppBar(
-            title: const Text("تفاصيل الخدمة"),
-            backgroundColor: AppColors.primary,
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            iconTheme: const IconThemeData(color: AppColors.textDark),
+            title: const Text(
+              "تفاصيل الخدمة",
+              style: TextStyle(
+                color: AppColors.textDark,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            centerTitle: true,
           ),
           body: BlocBuilder<ServiceBloc, ServiceState>(
             builder: (context, state) {
               if (state is ServiceLoading) {
                 return const Center(child: CircularProgressIndicator());
               } else if (state is ServiceLoaded) {
-                // ✨ هنا نبني الصور مرة واحدة عند تحميل البيانات
-                images = [
-                  if (state.service.imageUrl != null) state.service.imageUrl!,
-                  if (state.service.imageUrl2 != null) state.service.imageUrl2!,
-                  if (state.service.imageUrl3 != null) state.service.imageUrl3!,
+                final service = state.service;
+                final images = [
+                  if (service.imageUrl != null) service.imageUrl!,
+                  if (service.imageUrl2 != null) service.imageUrl2!,
+                  if (service.imageUrl3 != null) service.imageUrl3!,
                 ];
-                if (_timer == null)
-                  _startAutoScroll(); // نشغل التمرير بعد تحميل الصور
-                return _buildDetails(context, state.service);
+
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ✅ معرض الصور
+                      if (images.isNotEmpty)
+                        Column(
+                          children: [
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  PageRouteBuilder(
+                                    opaque: false,
+                                    transitionDuration:
+                                    const Duration(milliseconds: 400),
+                                    pageBuilder: (_, __, ___) =>
+                                        FullScreenServiceGallery(
+                                          images: images,
+                                          initialIndex: currentIndex,
+                                        ),
+                                  ),
+                                );
+                              },
+                              child: Stack(
+                                alignment: Alignment.bottomCenter,
+                                children: [
+                                  CarouselSlider.builder(
+                                    itemCount: images.length,
+                                    itemBuilder: (context, index, realIndex) {
+                                      return Hero(
+                                        tag:
+                                        'service_image_${service.id}_$index',
+                                        child: ClipRRect(
+                                          borderRadius:
+                                          BorderRadius.circular(20),
+                                          child: CachedNetworkImage(
+                                            imageUrl: images[index],
+                                            fit: BoxFit.cover,
+                                            width: double.infinity,
+                                            placeholder: (context, url) =>
+                                                Container(
+                                                  color: AppColors.background
+                                                      .withOpacity(0.2),
+                                                ),
+                                            errorWidget:
+                                                (context, url, error) =>
+                                            const Icon(Icons.error),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    options: CarouselOptions(
+                                      height: 280,
+                                      enlargeCenterPage: true,
+                                      autoPlay: true,
+                                      viewportFraction: 1.0,
+                                      onPageChanged: (index, reason) {
+                                        setState(() => currentIndex = index);
+                                      },
+                                    ),
+                                  ),
+                                  // ✅ Dots
+                                  Positioned(
+                                    bottom: 10,
+                                    child: Row(
+                                      mainAxisAlignment:
+                                      MainAxisAlignment.center,
+                                      children: List.generate(
+                                        images.length,
+                                            (index) => AnimatedContainer(
+                                          duration: const Duration(
+                                              milliseconds: 400),
+                                          margin: const EdgeInsets.symmetric(
+                                              horizontal: 4),
+                                          width:
+                                          currentIndex == index ? 22 : 8,
+                                          height: 8,
+                                          decoration: BoxDecoration(
+                                            color: currentIndex == index
+                                                ? AppColors.primary
+                                                : Colors.white.withOpacity(0.5),
+                                            borderRadius:
+                                            BorderRadius.circular(12),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+
+                      const SizedBox(height: 20),
+
+                      Text(
+                        service.name ?? "اسم الخدمة غير متوفر",
+                        style: textTheme.titleLarge?.copyWith(
+                          fontSize: 22,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        service.description ?? "لا توجد تفاصيل متاحة حاليًا.",
+                        style: textTheme.bodyLarge?.copyWith(
+                          fontSize: 16,
+                          color: AppColors.textDark,
+                        ),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // ✅ معلومات الخدمة بنفس تنسيق صفحة الإعلان
+                      GestureDetector(
+                        onTap: () {
+                          if (service.phone != null &&
+                              service.phone!.isNotEmpty) {
+                            _callPhone(service.phone!);
+                          }
+                        },
+                        child: _buildInfoTile(
+                          icon: Icons.phone,
+                          title: "رقم الهاتف",
+                          value: service.phone ?? "غير متوفر",
+                          textTheme: textTheme,
+                        ),
+                      ),
+
+                      GestureDetector(
+                        onTap: () {
+                          final address =
+                              "${service.address ?? ""}, ${service.area ?? ""}, ${service.governorate ?? ""}";
+                          if (address.trim().isNotEmpty) {
+                            _openMap(address);
+                          }
+                        },
+                        child: _buildInfoTile(
+                          icon: Icons.location_on,
+                          title: "العنوان",
+                          value:
+                          "${service.address ?? ""}, ${service.area ?? ""}, ${service.governorate ?? ""}",
+                          textTheme: textTheme,
+                        ),
+                      ),
+
+                      _buildInfoTile(
+                        icon: Icons.category,
+                        title: "الفئة",
+                        value: service.category ?? "غير متوفر",
+                        textTheme: textTheme,
+                      ),
+                      _buildInfoTile(
+                        icon: Icons.layers,
+                        title: "الفئة الفرعية",
+                        value: service.subcategory ?? "غير متوفر",
+                        textTheme: textTheme,
+                      ),
+
+                      const SizedBox(height: 40),
+
+                      Center(
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 40, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          onPressed: () {
+                            if (service.phone != null &&
+                                service.phone!.isNotEmpty) {
+                              _callPhone(service.phone!);
+                            }
+                          },
+                          icon: const Icon(Icons.phone_in_talk,
+                              color: Colors.white),
+                          label: Text(
+                            "تواصل الآن",
+                            style: textTheme.bodyLarge?.copyWith(
+                              fontSize: 16,
+                              color: AppColors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
               } else if (state is ServiceError) {
-                return Center(child: Text("خطأ: ${state.message}"));
+                return Center(child: Text("حدث خطأ: ${state.message}"));
               }
               return const SizedBox();
             },
@@ -109,116 +274,50 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
     );
   }
 
-  Widget _buildDetails(BuildContext context, ServiceModel service) {
-    return SingleChildScrollView(
-      child: Column(
+  Widget _buildInfoTile({
+    required IconData icon,
+    required String title,
+    required String value,
+    required TextTheme textTheme,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.15),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
+          )
+        ],
+      ),
+      child: Row(
         children: [
-          // الصور مع PageView
-          _buildImageCarousel(),
-          const SizedBox(height: 8),
-
-          // بطاقة التفاصيل
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black12,
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
+          Icon(icon, color: AppColors.primary),
+          const SizedBox(width: 12),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // اسم الخدمة
                 Text(
-                  service.name,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  title,
+                  style: textTheme.bodyMedium?.copyWith(
+                    fontSize: 14,
+                    color: AppColors.textLight,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: textTheme.bodyLarge?.copyWith(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
                     color: AppColors.textDark,
-                    fontWeight: FontWeight.bold,
                   ),
-                ),
-                const SizedBox(height: 12),
-
-                // الوصف
-                if (service.description != null &&
-                    service.description!.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(
-                      service.description!,
-                      style: const TextStyle(
-                        color: AppColors.textLight,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-
-                // العنوان - يفتح الخرائط
-                InkWell(
-                  onTap:
-                      () => _launchMaps(
-                        "${service.address}, ${service.area}, ${service.governorate}",
-                      ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.location_on, color: AppColors.primary),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          "${service.address}, ${service.area}, ${service.governorate}",
-                          style: const TextStyle(
-                            color: AppColors.textLight,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // الهاتف - يفتح الاتصال
-                InkWell(
-                  onTap: () => _launchPhone(service.phone),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.phone, color: AppColors.accent),
-                      const SizedBox(width: 8),
-                      Text(
-                        service.phone,
-                        style: const TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Divider(height: 32),
-
-                // باقي المواصفات
-                _buildAttributeRow(Icons.category, "الفئة", service.category),
-                const SizedBox(height: 8),
-                _buildAttributeRow(
-                  Icons.layers,
-                  "الفئة الفرعية",
-                  service.subcategory,
-                ),
-                const SizedBox(height: 8),
-                _buildAttributeRow(Icons.map, "المنطقة", service.area),
-                const SizedBox(height: 8),
-                _buildAttributeRow(
-                  Icons.location_city,
-                  "المحافظة",
-                  service.governorate,
                 ),
               ],
             ),
@@ -227,106 +326,95 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
       ),
     );
   }
+}
 
-  // دالة مساعدة لعرض كل واصفة
-  Widget _buildAttributeRow(IconData icon, String label, String value) {
-    return Row(
-      children: [
-        Icon(icon, color: AppColors.primary),
-        const SizedBox(width: 8),
-        Text(
-          "$label: $value",
-          style: const TextStyle(fontSize: 15, color: AppColors.textDark),
-        ),
-      ],
-    );
+//////////////////////////////////////////////////////////
+// ✅ شاشة عرض الصور بالحجم الكامل (مطابقة لتفاصيل الإعلان)
+//////////////////////////////////////////////////////////
+class FullScreenServiceGallery extends StatefulWidget {
+  final List<String> images;
+  final int initialIndex;
+  const FullScreenServiceGallery({
+    super.key,
+    required this.images,
+    required this.initialIndex,
+  });
+
+  @override
+  State<FullScreenServiceGallery> createState() =>
+      _FullScreenServiceGalleryState();
+}
+
+class _FullScreenServiceGalleryState extends State<FullScreenServiceGallery> {
+  late PageController _controller;
+  late int currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    currentIndex = widget.initialIndex;
+    _controller = PageController(initialPage: currentIndex);
   }
 
-  Widget _buildImageCarousel() {
-    if (images.isEmpty) return const SizedBox();
-
-    return Column(
-      children: [
-        SizedBox(
-          height: 240,
-          child: GestureDetector(
-            onTap: () {
-              // عند الضغط على الصورة، نفتح معرض كامل
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder:
-                      (_) => Scaffold(
-                        backgroundColor: Colors.black,
-                        body: PhotoViewGallery.builder(
-                          itemCount: images.length,
-                          builder: (context, index) {
-                            return PhotoViewGalleryPageOptions(
-                              imageProvider: NetworkImage(images[index]),
-                              minScale: PhotoViewComputedScale.contained,
-                              maxScale: PhotoViewComputedScale.covered * 3,
-                            );
-                          },
-                          pageController: PageController(
-                            initialPage: _currentPage,
-                          ),
-                          onPageChanged: (index) {
-                            setState(() {
-                              _currentPage = index;
-                            });
-                          },
-                          scrollPhysics: const BouncingScrollPhysics(),
-                        ),
-                      ),
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black.withOpacity(0.95),
+      body: Stack(
+        alignment: Alignment.center,
+        children: [
+          PageView.builder(
+            controller: _controller,
+            onPageChanged: (i) => setState(() => currentIndex = i),
+            itemCount: widget.images.length,
+            itemBuilder: (context, index) {
+              return Hero(
+                tag: 'service_image_${widget.images[index]}_$index',
+                child: InteractiveViewer(
+                  child: CachedNetworkImage(
+                    imageUrl: widget.images[index],
+                    fit: BoxFit.contain,
+                    placeholder: (context, url) => const Center(
+                      child: CircularProgressIndicator(color: AppColors.primary),
+                    ),
+                    errorWidget: (context, url, error) =>
+                    const Icon(Icons.broken_image, color: Colors.white),
+                  ),
                 ),
               );
             },
-            child: CarouselSlider.builder(
-              itemCount: images.length,
-              itemBuilder: (context, index, realIdx) {
-                return ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Image.network(
-                    images[index],
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: 240,
+          ),
+          Positioned(
+            bottom: 40,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(widget.images.length, (index) {
+                bool selected = index == currentIndex;
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  margin: const EdgeInsets.symmetric(horizontal: 5),
+                  width: selected ? 20 : 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? AppColors.primary
+                        : Colors.white.withOpacity(0.4),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                 );
-              },
-              options: CarouselOptions(
-                height: 240,
-                autoPlay: true,
-                enlargeCenterPage: true,
-                viewportFraction: 0.9,
-                onPageChanged: (index, reason) {
-                  setState(() {
-                    _currentPage = index;
-                  });
-                },
-              ),
+              }),
             ),
           ),
-        ),
-        const SizedBox(height: 8),
-        // Dots indicator
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(images.length, (index) {
-            final bool isActive = index == _currentPage;
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              height: 8,
-              width: isActive ? 20 : 8,
-              decoration: BoxDecoration(
-                color: isActive ? AppColors.primary : Colors.grey.shade400,
-                borderRadius: BorderRadius.circular(12),
-              ),
-            );
-          }),
-        ),
-      ],
+          Positioned(
+            top: 40,
+            right: 20,
+            child: IconButton(
+              icon: const Icon(Icons.close, color: Colors.white, size: 30),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
