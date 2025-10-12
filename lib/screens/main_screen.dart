@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../constant.dart';
 import 'category/view.dart';
+import 'contact/view.dart';
 import 'home/view.dart';
 
 class PersistentBtmBarExample extends StatefulWidget {
@@ -21,7 +22,7 @@ class _PersistentBtmBarExampleState extends State<PersistentBtmBarExample> {
     _screens = [
       HomeScreen(),
       CategoriesScreen(),
-    const ContactScreen(),
+      ContactView(),
     ];
   }
 
