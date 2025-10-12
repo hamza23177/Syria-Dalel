@@ -232,33 +232,67 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
 
                       const SizedBox(height: 40),
 
-                      Center(
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 40, vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
+                      // ✅ أزرار الاتصال والموقع على نفس الصف وبنفس الشكل
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                elevation: 8,
+                                shadowColor: AppColors.primary.withOpacity(0.5),
+                              ),
+                              onPressed: () {
+                                if (service.phone != null && service.phone!.isNotEmpty) {
+                                  _callPhone(service.phone!);
+                                }
+                              },
+                              icon: const Icon(Icons.phone_in_talk, color: Colors.white),
+                              label: Text(
+                                "تواصل الآن",
+                                style: textTheme.bodyLarge?.copyWith(
+                                  fontSize: 16,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ),
                           ),
-                          onPressed: () {
-                            if (service.phone != null &&
-                                service.phone!.isNotEmpty) {
-                              _callPhone(service.phone!);
-                            }
-                          },
-                          icon: const Icon(Icons.phone_in_talk,
-                              color: Colors.white),
-                          label: Text(
-                            "تواصل الآن",
-                            style: textTheme.bodyLarge?.copyWith(
-                              fontSize: 16,
-                              color: AppColors.white,
-                              fontWeight: FontWeight.bold,
+                          const SizedBox(width: 16), // مسافة بين الزرين
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                elevation: 8,
+                                shadowColor: AppColors.primary.withOpacity(0.5),
+                              ),
+                              onPressed: () {
+                                final address =
+                                    "${service.address ?? ""}, ${service.area ?? ""}, ${service.governorate ?? ""}";
+                                if (address.trim().isNotEmpty) {
+                                  _openMap(address);
+                                }
+                              },
+                              icon: const Icon(Icons.location_on, color: Colors.white),
+                              label: Text(
+                                "عرض الموقع",
+                                style: textTheme.bodyLarge?.copyWith(
+                                  fontSize: 16,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ),
                     ],
                   ),

@@ -191,31 +191,65 @@ class _AdDetailsPageState extends State<AdDetailsPage> {
 
               const SizedBox(height: 40),
 
-              Center(
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 40, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+              // ✅ أزرار الاتصال والموقع على نفس الصف وبنفس الشكل
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 8,
+                        shadowColor: AppColors.primary.withOpacity(0.5),
+                      ),
+                      onPressed: () {
+                        if (ad.phone != null && ad.phone!.isNotEmpty) {
+                          _callPhone(ad.phone!);
+                        }
+                      },
+                      icon: const Icon(Icons.phone_in_talk, color: Colors.white),
+                      label: Text(
+                        "تواصل الآن",
+                        style: textTheme.bodyLarge?.copyWith(
+                          fontSize: 16,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
-                  onPressed: () {
-                    if (ad.phone != null && ad.phone!.isNotEmpty) {
-                      _callPhone(ad.phone!);
-                    }
-                  },
-                  icon: const Icon(Icons.phone_in_talk, color: Colors.white),
-                  label: Text(
-                    "تواصل الآن",
-                    style: textTheme.bodyLarge?.copyWith(
-                      fontSize: 16,
-                      color: AppColors.white,
-                      fontWeight: FontWeight.bold,
+                  const SizedBox(width: 16), // مسافة بين الزرين
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 8,
+                        shadowColor: AppColors.primary.withOpacity(0.5),
+                      ),
+                      onPressed: () {
+                        if (ad.address != null && ad.address!.isNotEmpty) {
+                          _openMap(ad.address!);
+                        }
+                      },
+                      icon: const Icon(Icons.location_on, color: Colors.white),
+                      label: Text(
+                        "عرض الموقع",
+                        style: textTheme.bodyLarge?.copyWith(
+                          fontSize: 16,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                ],
               ),
             ],
           ),
