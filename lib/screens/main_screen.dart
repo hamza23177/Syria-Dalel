@@ -1,10 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import '../constant.dart';
-import '../services/ad_service.dart';
-import 'ads/bloc.dart';
-import 'ads/event.dart';
-import 'ads/view.dart';
 import 'category/view.dart';
 import 'home/view.dart';
 
@@ -26,10 +21,6 @@ class _PersistentBtmBarExampleState extends State<PersistentBtmBarExample> {
     _screens = [
       HomeScreen(),
       CategoriesScreen(),
-      BlocProvider(
-        create: (_) => AdBloc(AdService())..add(FetchAdsEvent()),
-        child: AdCarouselView(),
-      ),
     const ContactScreen(),
     ];
   }
@@ -68,10 +59,6 @@ class _PersistentBtmBarExampleState extends State<PersistentBtmBarExample> {
               BottomNavigationBarItem(
                 label: 'الأقسام',
                 icon: Icon(Icons.category),
-              ),
-              BottomNavigationBarItem(
-                label: 'الإعلانات',
-                icon: Icon(Icons.campaign),
               ),
               BottomNavigationBarItem(
                 label: 'تواصل معنا',

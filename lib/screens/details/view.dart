@@ -7,6 +7,7 @@ import '../../models/service_model.dart';
 import '../../services/service_api.dart';
 import '../../constant.dart';
 import 'bloc.dart';
+import 'detail_skeleton.dart';
 import 'event.dart';
 import 'state.dart';
 
@@ -59,7 +60,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
           body: BlocBuilder<ServiceBloc, ServiceState>(
             builder: (context, state) {
               if (state is ServiceLoading) {
-                return const Center(child: CircularProgressIndicator());
+                return const ServiceDetailSkeleton();
               } else if (state is ServiceLoaded) {
                 final service = state.service;
                 final images = [
