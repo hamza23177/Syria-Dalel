@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../constant.dart';
 import '../../services/contact_api.dart';
 import 'bloc.dart';
 import 'event.dart';
 import 'state.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class ContactView extends StatelessWidget {
   const ContactView({super.key});
@@ -15,7 +15,7 @@ class ContactView extends StatelessWidget {
   Future<void> _launchUrl(String url) async {
     if (url.isEmpty) return;
     final uri = Uri.parse(url);
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   @override
@@ -25,10 +25,13 @@ class ContactView extends StatelessWidget {
       child: Directionality(
         textDirection: TextDirection.rtl,
         child: Scaffold(
+          backgroundColor: AppColors.background,
           appBar: AppBar(
-            title: const Text("تواصل معنا"),
+            title: const Text("انضم إلى دليل سوريا"),
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
+            centerTitle: true,
+            elevation: 3,
           ),
           body: BlocBuilder<ContactBloc, ContactState>(
             builder: (context, state) {
@@ -40,31 +43,63 @@ class ContactView extends StatelessWidget {
                 final c = state.contact;
 
                 return SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // ---- العنوان والوصف ----
+                      // 🟢 العنوان الرئيسي
                       Text(
-                        c.name ?? "تواصل معنا",
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
+                        "كن جزءًا من دليل سوريا 🇸🇾",
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                           color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 12),
                       Text(
-                        c.description ?? "نحن سعداء بتواصلك معنا!",
+                        "هل تملك مطعمًا، محلًا، عيادة، أو أي خدمة؟\nانضم إلينا الآن واجعل آلاف المستخدمين يرون خدمتك يوميًا.",
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 16,
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: AppColors.textLight,
+                          height: 1.6,
                         ),
                       ),
                       const SizedBox(height: 30),
 
-                      // ---- بطاقات وسائل التواصل ----
+                      // 💎 صورة جمالية رمزية
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primary.withOpacity(0.2),
+                              blurRadius: 12,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: Image.asset(
+                            "assets/images/join_us.png",
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: 180,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 30),
+
+                      // 🟦 بطاقات وسائل التواصل
+                      Text(
+                        "اختر وسيلة التواصل المفضلة لديك:",
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: AppColors.textDark,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
                       Wrap(
                         spacing: 16,
                         runSpacing: 16,
@@ -72,46 +107,74 @@ class ContactView extends StatelessWidget {
                         children: [
                           if (c.phone != null && c.phone!.isNotEmpty)
                             _buildContactCard(
-                              iconWidget: const FaIcon(FontAwesomeIcons.phone, color: Colors.blueAccent, size: 28),
+                              iconWidget: const FaIcon(FontAwesomeIcons.phone, color: Colors.white, size: 28),
                               label: "اتصال مباشر",
                               color: Colors.blueAccent,
                               onTap: () => _launchUrl("tel:${c.phone}"),
                             ),
                           if (c.whatsapp != null && c.whatsapp!.isNotEmpty)
                             _buildContactCard(
-                              iconWidget: const FaIcon(FontAwesomeIcons.whatsapp, color: Colors.green, size: 28),
+                              iconWidget: const FaIcon(FontAwesomeIcons.whatsapp, color: Colors.white, size: 28),
                               label: "واتساب",
                               color: Colors.green,
                               onTap: () => _launchUrl("https://wa.me/${c.whatsapp!.replaceAll('+', '')}"),
                             ),
                           if (c.googleMapLink != null && c.googleMapLink!.isNotEmpty)
                             _buildContactCard(
-                              iconWidget: const FaIcon(FontAwesomeIcons.locationDot, color: Colors.orangeAccent, size: 28),
-                              label: "العنوان",
+                              iconWidget: const FaIcon(FontAwesomeIcons.locationDot, color: Colors.white, size: 28),
+                              label: "موقعنا على الخريطة",
                               color: Colors.orangeAccent,
                               onTap: () => _launchUrl(c.googleMapLink!),
                             ),
                         ],
                       ),
 
-                      const SizedBox(height: 30),
+                      const SizedBox(height: 40),
 
-                      // ---- العنوان النصي ----
-                      if (c.address != null && c.address!.isNotEmpty)
-                        Column(
+                      // 🌟 دعوة ختامية قوية
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+                        ),
+                        child: Column(
                           children: [
-                            const FaIcon(FontAwesomeIcons.mapMarkerAlt, color: AppColors.accent, size: 24),
-                            const SizedBox(height: 8),
                             Text(
-                              c.address!,
+                              "ابدأ معنا اليوم!",
+                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              "انضم الآن إلى دليل سوريا ودعنا نعرض خدمتك أمام آلاف المستخدمين المهتمين بخدماتك.",
                               textAlign: TextAlign.center,
-                              style: const TextStyle(
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                 color: AppColors.textDark,
-                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            ElevatedButton.icon(
+                              onPressed: () => _launchUrl("https://wa.me/${c.whatsapp!.replaceAll('+', '')}"),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              icon: const Icon(FontAwesomeIcons.arrowLeft, color: Colors.white),
+                              label: const Text(
+                                "تواصل الآن",
+                                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                               ),
                             ),
                           ],
                         ),
+                      ),
+
+                      const SizedBox(height: 50),
                     ],
                   ),
                 );
@@ -125,9 +188,9 @@ class ContactView extends StatelessWidget {
     );
   }
 
-  // ✅ تصميم الكارد
+  // ✅ تصميم الكارت الاحترافي لوسائل التواصل
   Widget _buildContactCard({
-    Widget? iconWidget,
+    required Widget iconWidget,
     required String label,
     required Color color,
     required VoidCallback onTap,
@@ -135,32 +198,35 @@ class ContactView extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
-      child: Container(
-        width: 130,
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 140,
+        height: 120,
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.white.withOpacity(0.9),
-          borderRadius: BorderRadius.circular(16),
+          color: color,
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.2),
-              blurRadius: 8,
-              spreadRadius: 2,
-              offset: const Offset(2, 2),
+              color: color.withOpacity(0.3),
+              blurRadius: 10,
+              spreadRadius: 1,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            iconWidget!,
-            const SizedBox(height: 8),
+            iconWidget,
+            const SizedBox(height: 10),
             Text(
               label,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                color: AppColors.textDark,
+                color: Colors.white,
                 fontWeight: FontWeight.w600,
+                fontSize: 15,
               ),
             ),
           ],
@@ -169,7 +235,7 @@ class ContactView extends StatelessWidget {
     );
   }
 
-  // ✨ Skeleton Loading
+  // ✨ تأثير التحميل
   Widget _buildShimmerLoading() {
     return Shimmer.fromColors(
       baseColor: Colors.grey[300]!,
