@@ -82,7 +82,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Scaffold(
           appBar: AppBar(
             backgroundColor: AppColors.background,
-            elevation: 1,
+            elevation: 0.8,
             centerTitle: false,
             title: Align(
               alignment: Alignment.centerRight,
@@ -91,6 +91,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   color: AppColors.primary,
                   fontWeight: FontWeight.bold,
+                  letterSpacing: 0.3,
                 ),
               ),
             ),

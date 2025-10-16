@@ -164,7 +164,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
           backgroundColor: AppColors.background,
           appBar: AppBar(
             backgroundColor: AppColors.background,
-            elevation: 1,
+            elevation: 0.8,
             centerTitle: false,
             title: Align(
               alignment: Alignment.centerRight,
@@ -173,6 +173,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   color: AppColors.primary,
                   fontWeight: FontWeight.bold,
+                  letterSpacing: 0.3,
                 ),
               ),
             ),

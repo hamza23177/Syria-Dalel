@@ -27,11 +27,15 @@ class ContactView extends StatelessWidget {
         child: Scaffold(
           backgroundColor: AppColors.background,
           appBar: AppBar(
-            title: const Text("انضم إلى دليل سوريا"),
-            backgroundColor: AppColors.primary,
+            title: Text("انضم إلى دليل سوريا",style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              color: AppColors.primary,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.3,
+            ),),
+            backgroundColor: AppColors.background,
             foregroundColor: Colors.white,
-            centerTitle: true,
-            elevation: 3,
+            centerTitle: false,
+            elevation: 0.8,
           ),
           body: BlocBuilder<ContactBloc, ContactState>(
             builder: (context, state) {
@@ -236,33 +240,103 @@ class ContactView extends StatelessWidget {
   }
 
   // ✨ تأثير التحميل
+  // ✨ تأثير التحميل المتطابق مع الصفحة
   Widget _buildShimmerLoading() {
     return Shimmer.fromColors(
       baseColor: Colors.grey[300]!,
       highlightColor: Colors.grey[100]!,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Container(width: 180, height: 20, color: Colors.white),
-            const SizedBox(height: 16),
-            Container(width: 250, height: 16, color: Colors.white),
+            // 🟢 العنوان الرئيسي
+            Container(
+              width: 220,
+              height: 28,
+              color: Colors.white,
+            ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              height: 60,
+              color: Colors.white,
+            ),
             const SizedBox(height: 30),
+
+            // 💎 صورة جمالية رمزية
+            Container(
+              width: double.infinity,
+              height: 180,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+            const SizedBox(height: 30),
+
+            // 🟦 عنوان وسائل التواصل
+            Container(
+              width: 220,
+              height: 22,
+              color: Colors.white,
+            ),
+            const SizedBox(height: 16),
+
+            // 🧩 بطاقات التواصل
             Wrap(
               spacing: 16,
               runSpacing: 16,
+              alignment: WrapAlignment.center,
               children: List.generate(
                 3,
                     (index) => Container(
-                  width: 130,
-                  height: 100,
+                  width: 140,
+                  height: 120,
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                 ),
               ),
             ),
+
+            const SizedBox(height: 40),
+
+            // 🌟 مربع الدعوة الختامي
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white),
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    width: 180,
+                    height: 24,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    height: 60,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    width: 200,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 50),
           ],
         ),
       ),
