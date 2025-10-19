@@ -5,6 +5,7 @@ import 'package:carousel_slider/carousel_slider.dart';
 import 'package:untitled2/screens/home/skeleton.dart';
 import '../../constant.dart';
 import '../../services/ad_service.dart';
+import '../../services/notification_service.dart';
 import '../ads/bloc.dart';
 import '../ads/event.dart';
 import '../ads/view.dart';
