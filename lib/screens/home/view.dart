@@ -24,12 +24,35 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final ScrollController _scrollController = ScrollController();
   String? selectedGovernorate;
   String? selectedArea;
   List<Category> filteredCategories = [];
   List<SubCategory> filteredSubCategories = [];
   List<Product> filteredProducts = [];
   HomeData? homeData;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    final bloc = context.read<HomeBloc>();
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      bloc.add(LoadMoreHomeData(page: bloc.currentPage + 1));
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+
 
   void applyFilter(HomeData home) {
     setState(() {
@@ -113,6 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     : homeData!.areas.where((a) => a.governorate.name == selectedGovernorate).toList();
 
                 return SingleChildScrollView(
+                  controller: _scrollController,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -202,6 +226,19 @@ class _HomeScreenState extends State<HomeScreen> {
                         emptyMessage: "لا توجد منتجات لهذه المنطقة",
                         gridBuilder: () => ProductGrid(products: filteredProducts),
                       ),
+                      if (state.isLoadingMore)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 24),
+                          child: Center(
+                            child: SizedBox(
+                              width: 32,
+                              height: 32,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 3,
+                              ),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 );

@@ -12,11 +12,12 @@ class CategoryLoading extends CategoryState {}
 
 class CategoryLoaded extends CategoryState {
   final CategoryResponse response;
+  final bool isLoadingMore;
 
-  CategoryLoaded(this.response);
+  CategoryLoaded(this.response, {this.isLoadingMore = false});
 
   @override
-  List<Object?> get props => [response];
+  List<Object?> get props => [response, isLoadingMore];
 }
 
 class CategoryError extends CategoryState {

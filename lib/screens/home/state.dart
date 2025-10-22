@@ -13,8 +13,9 @@ class HomeLoading extends HomeState {}
 
 class HomeLoaded extends HomeState {
   final HomeData data;
+  final bool isLoadingMore;
 
-  HomeLoaded(this.data);
+  HomeLoaded(this.data, {this.isLoadingMore = false});
 
   @override
   List<Object?> get props => [data];

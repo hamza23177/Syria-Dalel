@@ -330,61 +330,66 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                 Expanded(
                   child: BlocBuilder<CategoryBloc, CategoryState>(
                     builder: (context, state) {
-                      if (state is CategoryLoading && allCategories.isEmpty) {
-                        // ✅ Skeleton Grid أثناء التحميل
+                      if (state is CategoryLoading) {
                         return GridView.builder(
                           padding: const EdgeInsets.all(12),
-                          physics: const BouncingScrollPhysics(),
                           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 2,
                             crossAxisSpacing: 12,
                             mainAxisSpacing: 12,
                             childAspectRatio: 0.72,
                           ),
-                          itemCount: 6, // عدد الكروت الوهمية
+                          itemCount: 6,
                           itemBuilder: (_, __) => categorySkeleton(_w),
                         );
-                      } else if (filteredCategories.isEmpty) {
-                        return Center(
-                          child: Text(
-                            "لا توجد فئات لهذه المنطقة",
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyLarge
-                                ?.copyWith(color: AppColors.primary),
-                          ),
-                        );
-                      } else {
-                        return GridView.builder(
-                          padding: const EdgeInsets.all(12),
-                          physics: const BouncingScrollPhysics(),
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
-                            childAspectRatio: 0.72,
-                          ),
-                          itemCount: filteredCategories.length + 1,
-                          itemBuilder: (context, index) {
-                            if (index < filteredCategories.length) {
-                              final category = filteredCategories[index];
-                              return card(category);
-                            } else {
-                              final bloc = context.read<CategoryBloc>();
-                              final state = bloc.state;
-                              if (state is CategoryLoaded &&
-                                  state.response.meta.currentPage < state.response.meta.lastPage) {
-                                return const Center(child: CircularProgressIndicator());
-                              } else {
-                                return const SizedBox();
-                              }
+                      }
+
+                      if (state is CategoryLoaded) {
+                        final categories = state.response.data;
+
+                        return NotificationListener<ScrollNotification>(
+                          onNotification: (scrollInfo) {
+                            if (scrollInfo.metrics.pixels >=
+                                scrollInfo.metrics.maxScrollExtent - 200) {
+                              context.read<CategoryBloc>().add(FetchCategories());
                             }
+                            return false;
                           },
+                          child: GridView.builder(
+                            controller: _scrollController,
+                            padding: const EdgeInsets.all(12),
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
+                              childAspectRatio: 0.72,
+                            ),
+                            itemCount: categories.length + (state.isLoadingMore ? 1 : 0),
+                            itemBuilder: (context, index) {
+                              if (index < categories.length) {
+                                return card(categories[index]);
+                              } else {
+                                return const Center(
+                                  child: Padding(
+                                    padding: EdgeInsets.all(16.0),
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  ),
+                                );
+                              }
+                            },
+                          ),
                         );
                       }
+
+                      if (state is CategoryError) {
+                        return Center(child: Text(state.message));
+                      }
+
+                      return const SizedBox();
                     },
                   ),
                 ),
+
               ],
             ),
           ),

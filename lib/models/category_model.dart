@@ -66,7 +66,8 @@ class Links {
 
   Links({this.first, this.last, this.prev, this.next});
 
-  factory Links.fromJson(Map<String, dynamic> json) {
+  factory Links.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return Links();
     return Links(
       first: json['first'],
       last: json['last'],
@@ -74,6 +75,7 @@ class Links {
       next: json['next'],
     );
   }
+
 }
 
 class Meta {
@@ -99,18 +101,20 @@ class Meta {
 
   factory Meta.fromJson(Map<String, dynamic> json) {
     return Meta(
-      currentPage: json['current_page'],
-      from: json['from'],
-      lastPage: json['last_page'],
-      links: (json['links'] as List)
-          .map((e) => LinkItem.fromJson(e))
-          .toList(),
-      path: json['path'],
-      perPage: json['per_page'],
-      to: json['to'],
-      total: json['total'],
+      currentPage: json['current_page'] ?? 0,
+      from: json['from'] ?? 0,
+      lastPage: json['last_page'] ?? 0,
+      links: (json['links'] as List?)
+          ?.map((e) => LinkItem.fromJson(e))
+          .toList() ??
+          [],
+      path: json['path'] ?? '',
+      perPage: json['per_page'] ?? 0,
+      to: json['to'] ?? 0,
+      total: json['total'] ?? 0,
     );
   }
+
 }
 
 class LinkItem {

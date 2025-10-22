@@ -1,52 +1,87 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../models/category_model.dart';
+import '../../services/category_service.dart';
 import 'event.dart';
 import 'state.dart';
-import '../../services/category_service.dart';
 
 class CategoryBloc extends Bloc<CategoryEvent, CategoryState> {
   final CategoryService service;
-  int _currentPage = 1;
-  bool _hasMore = true;
-  bool _isFetching = false;
-  final int perPage;
+  int currentPage = 1;
+  bool isLoading = false;
+  bool hasMore = true;
 
-  List<Category> _allCategories = [];
+  List<Category> _categories = [];
 
-  CategoryBloc(this.service, {this.perPage = 10}) : super(CategoryInitial()) {
-    on<FetchCategories>((event, emit) async {
-      if (!_hasMore || _isFetching) return;
-      _isFetching = true;
+  CategoryBloc(this.service) : super(CategoryInitial()) {
+    on<FetchCategories>(_onFetchCategories);
+  }
 
-      if (_currentPage == 1) emit(CategoryLoading());
+  Future<void> _onFetchCategories(
+      FetchCategories event,
+      Emitter<CategoryState> emit,
+      ) async {
+    if (isLoading || !hasMore) return;
+    isLoading = true;
 
-      try {
-        final response = await service.fetchCategories(
-          page: _currentPage,
-          perPage: perPage,
-        );
+    // تحميل أول صفحة
+    if (currentPage == 1) {
+      emit(CategoryLoading());
+    } else {
+      // التحميل الإضافي
+      emit(CategoryLoaded(
+        CategoryResponse(
+          data: List<Category>.from(_categories),
+          links: Links(first: '', last: '', prev: '', next: ''),
+          meta: Meta(
+            currentPage: currentPage,
+            from: 0,
+            lastPage: 0,
+            links: [],
+            path: '',
+            perPage: 0,
+            to: 0,
+            total: 0,
+          ),
+        ),
+        isLoadingMore: true,
+      ));
+    }
 
-        _allCategories.addAll(response.data);
+    try {
+      final response = await service.fetchCategories(page: currentPage);
+      final newCategories = response.data;
 
-        _hasMore = _currentPage < response.meta.lastPage;
-
-        emit(CategoryLoaded(CategoryResponse(
-          data: _allCategories,
-          links: response.links,
-          meta: response.meta,
-        )));
-
-        _currentPage++; // انتقل للصفحة التالية
-      } catch (e) {
-        emit(CategoryError(e.toString()));
+      if (newCategories.isEmpty) {
+        hasMore = false;
+      } else {
+        _categories = List<Category>.from(_categories)..addAll(newCategories);
+        currentPage++;
       }
 
-      _isFetching = false;
-    });
+      // إصدار الحالة بعد التحميل
+      emit(CategoryLoaded(
+        CategoryResponse(
+          data: List<Category>.from(_categories),
+          links: response.links ?? Links(),
+          meta: response.meta ??
+              Meta(
+                currentPage: currentPage,
+                from: 0,
+                lastPage: 0,
+                links: [],
+                path: '',
+                perPage: 0,
+                to: 0,
+                total: 0,
+              ),
+        ),
+        isLoadingMore: false,
+      ));
+
+    } catch (e) {
+      emit(CategoryError("فشل في تحميل البيانات: ${e.toString()}"));
+    }
+
+    isLoading = false;
   }
 }
-
-
-
-
-

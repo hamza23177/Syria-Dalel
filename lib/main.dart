@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:untitled2/screens/category/bloc.dart';
 import 'package:untitled2/screens/category/view.dart';
 import 'package:untitled2/screens/contact/view.dart';
+import 'package:untitled2/screens/home/bloc.dart';
 import 'package:untitled2/screens/main_screen.dart';
+import 'package:untitled2/services/category_service.dart';
+import 'package:untitled2/services/home_service.dart';
 import 'package:untitled2/splash.dart';
 import 'package:untitled2/constant.dart';
 import 'package:untitled2/services/notification_service.dart';
@@ -12,21 +17,24 @@ import 'package:workmanager/workmanager.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // --- هنا نعلّم callbackDispatcher ---
+  // --- تهيئة Workmanager ---
   await Workmanager().initialize(
     callbackDispatcher,
     isInDebugMode: true,
   );
 
-  // تهيئة الإشعارات
+  // --- تهيئة الإشعارات ---
   await NotificationService.init();
+
+  // --- تهيئة المنطقة الزمنية ---
+  tz.initializeTimeZones();
+  tz.setLocalLocation(tz.getLocation('Asia/Damascus'));
 
   runApp(const MyApp());
 }
 
-// @pragma('vm:entry-point') مهم جدًا!!
+// --- @pragma مهم جدًا لـ Workmanager ---
 @pragma('vm:entry-point')
-
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
     await NotificationService.showImmediateNotification(
@@ -43,23 +51,28 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: "دليل سوريا",
-      routes: {
-        '/categories': (_) => CategoriesScreen(),
-        '/contact': (_) => ContactView(),
-      },
-      theme: ThemeData(
-        fontFamily: AppFonts.primaryFont,
-        primaryColor: AppColors.primary,
-        scaffoldBackgroundColor: AppColors.background,
-        colorScheme: ColorScheme.fromSwatch().copyWith(
-          primary: AppColors.primary,
-          secondary: AppColors.accent,
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (_) => HomeBloc(HomeService())),
+        BlocProvider(create: (_) => CategoryBloc(CategoryService())),
+      ],
+      child: MaterialApp(
+        title: "دليل سوريا",
+        routes: {
+          '/categories': (_) => CategoriesScreen(),
+          '/contact': (_) => ContactView(),
+        },
+        theme: ThemeData(
+          fontFamily: AppFonts.primaryFont,
+          primaryColor: AppColors.primary,
+          scaffoldBackgroundColor: AppColors.background,
+          colorScheme: ColorScheme.fromSwatch().copyWith(
+            primary: AppColors.primary,
+            secondary: AppColors.accent,
+          ),
         ),
+        home: Splash(),
       ),
-      home: Splash(),
     );
   }
 }
-

@@ -25,5 +25,5 @@ class AppFonts {
 }
 
 class ApiConstants {
-  static const String baseUrl = "http://10.59.119.64:8000/api";
+  static const String baseUrl = "http://10.123.192.64:8000/api";
 }
