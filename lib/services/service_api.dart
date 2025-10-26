@@ -5,8 +5,9 @@ import '../constant.dart';
 class ServiceApi {
   final Dio dio = Dio(BaseOptions(baseUrl: "${ApiConstants.baseUrl}/user"));
 
-  Future<List<ServiceModel>> fetchServices({
+  Future<ServiceResponse> fetchServices({
     int perPage = 10,
+    int page = 1,
     String? name,
     int? subCategoryId,
   }) async {
@@ -14,14 +15,15 @@ class ServiceApi {
       "/product",
       queryParameters: {
         "perPage": perPage,
+        "page": page,
         "name": name ?? "",
         "sub_category_id": subCategoryId,
       },
     );
 
-    final List data = response.data['data'];
-    return data.map((e) => ServiceModel.fromJson(e)).toList();
+    return ServiceResponse.fromJson(response.data);
   }
+
 
   Future<ServiceModel> fetchServiceDetails(int id) async {
     final response = await dio.get("/product/$id");

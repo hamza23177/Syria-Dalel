@@ -23,6 +23,8 @@ class ServiceScreen extends StatefulWidget {
 
 class _ServiceScreenState extends State<ServiceScreen>
     with SingleTickerProviderStateMixin {
+  final ScrollController _scrollController = ScrollController();
+
   late AnimationController _controller;
   late Animation<double> _animation;
   late Animation<double> _animation2;
@@ -30,6 +32,17 @@ class _ServiceScreenState extends State<ServiceScreen>
   @override
   void initState() {
     super.initState();
+    context.read<ServiceBloc>().add(FetchServices(subCategoryId: widget.subCategoryId));
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels >=
+          _scrollController.position.maxScrollExtent - 300) {
+        // تحميل قبل الوصول للنهاية بـ 300 بكسل
+        context.read<ServiceBloc>().add(
+          FetchServices(subCategoryId: widget.subCategoryId, loadMore: true),
+        );
+      }
+    });
+    context.read<ServiceBloc>().add(FetchServices(subCategoryId: widget.subCategoryId));
 
     /// Animation init
     _controller = AnimationController(
@@ -100,10 +113,19 @@ class _ServiceScreenState extends State<ServiceScreen>
                   }
 
                   return ListView.builder(
+                    controller: _scrollController,
                     physics: const BouncingScrollPhysics(),
-                    itemCount: state.services.length,
+                    itemCount: state.services.length + (state.isLoadingMore ? 1 : 0),
                     itemBuilder: (context, index) {
-                      final ServiceModel service = state.services[index];
+                      if (index == state.services.length) {
+                          return const Padding(
+                            padding: EdgeInsets.all(12.0),
+                            child: Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                          );
+                      }
+                      final service = state.services[index];
 
                       return Opacity(
                         opacity: _animation.value,

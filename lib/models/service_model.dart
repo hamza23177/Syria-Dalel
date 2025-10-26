@@ -44,3 +44,52 @@ class ServiceModel {
     );
   }
 }
+
+class Links {
+  final String? next;
+  final String? prev;
+
+  Links({this.next, this.prev});
+
+  factory Links.fromJson(Map<String, dynamic> json) {
+    return Links(
+      next: json['next'],
+      prev: json['prev'],
+    );
+  }
+}
+
+class Meta {
+  final int currentPage;
+  final int lastPage;
+
+  Meta({required this.currentPage, required this.lastPage});
+
+  factory Meta.fromJson(Map<String, dynamic> json) {
+    return Meta(
+      currentPage: json['current_page'],
+      lastPage: json['last_page'],
+    );
+  }
+}
+
+class ServiceResponse {
+  final List<ServiceModel> data;
+  final Links links;
+  final Meta meta;
+
+  ServiceResponse({
+    required this.data,
+    required this.links,
+    required this.meta,
+  });
+
+  factory ServiceResponse.fromJson(Map<String, dynamic> json) {
+    return ServiceResponse(
+      data: (json['data'] as List).map((e) => ServiceModel.fromJson(e)).toList(),
+      links: Links.fromJson(json['links']),
+      meta: Meta.fromJson(json['meta']),
+    );
+  }
+}
+

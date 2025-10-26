@@ -6,15 +6,18 @@ class ServiceRepository {
 
   ServiceRepository(this.api);
 
-  Future<List<ServiceModel>> getServices({
+  Future<ServiceResponse> getServices({
     int perPage = 10,
+    int page = 1,
     String? name,
     int? subCategoryId,
   }) {
     return api.fetchServices(
       perPage: perPage,
+      page: page,
       name: name,
       subCategoryId: subCategoryId,
     );
   }
+
 }

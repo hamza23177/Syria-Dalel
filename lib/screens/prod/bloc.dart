@@ -8,16 +8,48 @@ class ServiceBloc extends Bloc<ServiceEvent, ServiceState> {
 
   ServiceBloc(this.repository) : super(ServiceInitial()) {
     on<FetchServices>((event, emit) async {
-      emit(ServiceLoading());
+      final currentState = state;
       try {
-        final services = await repository.getServices(
-          subCategoryId: event.subCategoryId,
-          name: event.search,
-        );
-        emit(ServiceLoaded(services));
+        if (event.loadMore && currentState is ServiceLoaded) {
+          if (currentState.isLoadingMore || currentState.currentPage >= currentState.lastPage) return;
+
+          // Emit حالة تحميل إضافية (لإظهار loader أسفل القائمة)
+          emit(currentState.copyWith(isLoadingMore: true));
+
+          final nextPage = currentState.currentPage + 1;
+          final response = await repository.getServices(
+            subCategoryId: event.subCategoryId,
+            name: event.search,
+            page: nextPage,
+          );
+
+          emit(
+            currentState.copyWith(
+              services: List.from(currentState.services)..addAll(response.data),
+              currentPage: response.meta.currentPage,
+              lastPage: response.meta.lastPage,
+              isLoadingMore: false,
+            ),
+          );
+        } else {
+          emit(ServiceLoading());
+          final response = await repository.getServices(
+            subCategoryId: event.subCategoryId,
+            name: event.search,
+            page: 1,
+          );
+          emit(ServiceLoaded(
+            services: response.data,
+            currentPage: response.meta.currentPage,
+            lastPage: response.meta.lastPage,
+            isLoadingMore: false,
+          ));
+        }
       } catch (e) {
         emit(ServiceError(e.toString()));
       }
     });
+
+
   }
 }

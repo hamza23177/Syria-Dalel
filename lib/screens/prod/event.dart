@@ -8,6 +8,8 @@ abstract class ServiceEvent extends Equatable {
 class FetchServices extends ServiceEvent {
   final int subCategoryId;
   final String? search;
+  final bool loadMore;
 
-  FetchServices({required this.subCategoryId, this.search});
+  FetchServices({required this.subCategoryId, this.search, this.loadMore = false});
 }
+
