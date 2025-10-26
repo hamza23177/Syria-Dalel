@@ -30,10 +30,13 @@ class _SubCategoryScreenState extends State<SubCategoryScreen>
   late AnimationController _controller;
   late Animation<double> _animation;
   late Animation<double> _animation2;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
+
+    _scrollController.addListener(_onScroll);
 
     /// Animation init
     _controller = AnimationController(
@@ -54,9 +57,18 @@ class _SubCategoryScreenState extends State<SubCategoryScreen>
     _controller.forward();
   }
 
+  void _onScroll() {
+    final bloc = context.read<SubCategoryBloc>();
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      bloc.add(FetchSubCategories(categoryId: widget.categoryId));
+    }
+  }
+
   @override
   void dispose() {
     _controller.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -101,122 +113,140 @@ class _SubCategoryScreenState extends State<SubCategoryScreen>
                       return const Center(child: Text("لا توجد أقسام فرعية"));
                     }
 
-                    return ListView.builder(
-                      physics: const BouncingScrollPhysics(),
-                      itemCount: state.subCategories.length,
-                      itemBuilder: (context, index) {
-                        final sub = state.subCategories[index];
-
-                        return Opacity(
-                          opacity: _animation.value,
-                          child: Transform.translate(
-                            offset: Offset(0, _animation2.value),
-                            child: InkWell(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => BlocProvider(
-                                      create: (context) => ServiceBloc(
-                                          ServiceRepository(ServiceApi()))
-                                        ..add(FetchServices(
-                                            subCategoryId: sub.id)),
-                                      child: ServiceScreen(
-                                        subCategoryId: sub.id,
-                                        subCategoryName: sub.name,
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                              splashColor: Colors.transparent,
-                              highlightColor: Colors.transparent,
-                              child: Container(
-                                margin: EdgeInsets.fromLTRB(
-                                    _w / 20, _w / 20, _w / 20, 0),
-                                padding: EdgeInsets.all(_w / 20),
-                                height: _w / 3.5,
-                                width: _w,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xffEDECEA),
-                                  borderRadius: BorderRadius.circular(20),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(.05),
-                                      blurRadius: 10,
-                                    )
-                                  ],
-                                ),
-                                child: Row(
-                                  mainAxisAlignment:
-                                  MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    /// صورة القسم الفرعي
-                                    CircleAvatar(
-                                      backgroundColor: Colors.orange.shade50,
-                                      radius: _w / 10,
-                                      backgroundImage: sub.imageUrl != null
-                                          ? NetworkImage(sub.imageUrl!)
-                                          : null,
-                                      child: sub.imageUrl == null
-                                          ? const Icon(Icons.category,
-                                          size: 30, color: Colors.grey)
-                                          : null,
-                                    ),
-
-                                    /// معلومات القسم
-                                    Expanded(
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 12),
-                                        child: Column(
-                                          mainAxisAlignment:
-                                          MainAxisAlignment.spaceEvenly,
-                                          crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              sub.name,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              textScaleFactor: 1.3,
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.black
-                                                    .withOpacity(.8),
-                                              ),
-                                            ),
-                                            Text(
-                                              sub.category.name,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                fontSize: 13,
-                                                color: Colors.black
-                                                    .withOpacity(.7),
-                                              ),
-                                            ),
-                                            Text(
-                                              "في ${sub.category.area.name}",
-                                              style: const TextStyle(
-                                                color: Colors.deepOrange,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ],
+                    return NotificationListener<ScrollNotification>(
+                      onNotification: (scrollInfo) {
+                        if (scrollInfo.metrics.pixels >=
+                            scrollInfo.metrics.maxScrollExtent - 200) {
+                          context.read<SubCategoryBloc>().add(
+                            FetchSubCategories(categoryId: widget.categoryId),
+                          );
+                        }
+                        return false;
+                      },
+                      child: ListView.builder(
+                        controller: _scrollController,
+                        physics: const BouncingScrollPhysics(),
+                        itemCount: state.subCategories.length + (state.isLoadingMore ? 1 : 0),
+                        itemBuilder: (context, index) {
+                          if (index < state.subCategories.length) {
+                            final sub = state.subCategories[index];
+                      
+                            return Opacity(
+                              opacity: _animation.value,
+                              child: Transform.translate(
+                                offset: Offset(0, _animation2.value),
+                                child: InkWell(
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => BlocProvider(
+                                          create: (context) => ServiceBloc(
+                                              ServiceRepository(ServiceApi()))
+                                            ..add(FetchServices(
+                                                subCategoryId: sub.id)),
+                                          child: ServiceScreen(
+                                            subCategoryId: sub.id,
+                                            subCategoryName: sub.name,
+                                          ),
                                         ),
                                       ),
+                                    );
+                                  },
+                                  splashColor: Colors.transparent,
+                                  highlightColor: Colors.transparent,
+                                  child: Container(
+                                    margin: EdgeInsets.fromLTRB(
+                                        _w / 20, _w / 20, _w / 20, 0),
+                                    padding: EdgeInsets.all(_w / 20),
+                                    height: _w / 3.5,
+                                    width: _w,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xffEDECEA),
+                                      borderRadius: BorderRadius.circular(20),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(.05),
+                                          blurRadius: 10,
+                                        )
+                                      ],
                                     ),
-
-                                    const Icon(Icons.navigate_next,
-                                        color: Colors.black54),
-                                  ],
+                                    child: Row(
+                                      mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        CircleAvatar(
+                                          backgroundColor: Colors.orange.shade50,
+                                          radius: _w / 10,
+                                          backgroundImage: sub.imageUrl != null
+                                              ? NetworkImage(sub.imageUrl!)
+                                              : null,
+                                          child: sub.imageUrl == null
+                                              ? const Icon(Icons.category,
+                                              size: 30, color: Colors.grey)
+                                              : null,
+                                        ),
+                                        Expanded(
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 12),
+                                            child: Column(
+                                              mainAxisAlignment:
+                                              MainAxisAlignment.spaceEvenly,
+                                              crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  sub.name,
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  textScaleFactor: 1.3,
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.black
+                                                        .withOpacity(.8),
+                                                  ),
+                                                ),
+                                                Text(
+                                                  sub.category.name,
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                    fontSize: 13,
+                                                    color: Colors.black
+                                                        .withOpacity(.7),
+                                                  ),
+                                                ),
+                                                Text(
+                                                  "في ${sub.category.area.name}",
+                                                  style: const TextStyle(
+                                                    color: Colors.deepOrange,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                        const Icon(Icons.navigate_next,
+                                            color: Colors.black54),
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
-                          ),
-                        );
-                      },
+                            );
+                          } else {
+                            // عنصر الـ Loading More
+                            return const Padding(
+                              padding: EdgeInsets.all(16.0),
+                              child: Center(
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            );
+                          }
+                        },
+                      ),
                     );
                   } else if (state is SubCategoryError) {
                     return Center(child: Text("خطأ: ${state.message}"));

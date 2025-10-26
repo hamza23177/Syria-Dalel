@@ -5,8 +5,10 @@ import 'package:untitled2/screens/category/view.dart';
 import 'package:untitled2/screens/contact/view.dart';
 import 'package:untitled2/screens/home/bloc.dart';
 import 'package:untitled2/screens/main_screen.dart';
+import 'package:untitled2/screens/sub/bloc.dart';
 import 'package:untitled2/services/category_service.dart';
 import 'package:untitled2/services/home_service.dart';
+import 'package:untitled2/services/sub_category_service.dart';
 import 'package:untitled2/splash.dart';
 import 'package:untitled2/constant.dart';
 import 'package:untitled2/services/notification_service.dart';
@@ -55,6 +57,7 @@ class MyApp extends StatelessWidget {
       providers: [
         BlocProvider(create: (_) => HomeBloc(HomeService())),
         BlocProvider(create: (_) => CategoryBloc(CategoryService())),
+        BlocProvider(create: (_) => SubCategoryBloc(SubCategoryService())),
       ],
       child: MaterialApp(
         title: "دليل سوريا",

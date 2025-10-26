@@ -138,6 +138,8 @@ class Meta {
   final int currentPage;
   final int from;
   final int lastPage;
+  final List<LinkItem> links;
+  final String path;
   final int perPage;
   final int to;
   final int total;
@@ -146,6 +148,8 @@ class Meta {
     required this.currentPage,
     required this.from,
     required this.lastPage,
+    required this.links,
+    required this.path,
     required this.perPage,
     required this.to,
     required this.total,
@@ -153,12 +157,38 @@ class Meta {
 
   factory Meta.fromJson(Map<String, dynamic> json) {
     return Meta(
-      currentPage: json['current_page'],
-      from: json['from'],
-      lastPage: json['last_page'],
-      perPage: json['per_page'],
-      to: json['to'],
-      total: json['total'],
+      currentPage: json['current_page'] ?? 0,
+      from: json['from'] ?? 0,
+      lastPage: json['last_page'] ?? 0,
+      links: (json['links'] as List?)
+          ?.map((e) => LinkItem.fromJson(e))
+          .toList() ??
+          [],
+      path: json['path'] ?? '',
+      perPage: json['per_page'] ?? 0,
+      to: json['to'] ?? 0,
+      total: json['total'] ?? 0,
     );
   }
 }
+
+class LinkItem {
+  final String? url;
+  final String label;
+  final bool active;
+
+  LinkItem({
+    this.url,
+    required this.label,
+    required this.active,
+  });
+
+  factory LinkItem.fromJson(Map<String, dynamic> json) {
+    return LinkItem(
+      url: json['url'],
+      label: json['label'],
+      active: json['active'],
+    );
+  }
+}
+

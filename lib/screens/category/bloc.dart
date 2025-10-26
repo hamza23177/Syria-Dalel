@@ -63,17 +63,7 @@ class CategoryBloc extends Bloc<CategoryEvent, CategoryState> {
         CategoryResponse(
           data: List<Category>.from(_categories),
           links: response.links ?? Links(),
-          meta: response.meta ??
-              Meta(
-                currentPage: currentPage,
-                from: 0,
-                lastPage: 0,
-                links: [],
-                path: '',
-                perPage: 0,
-                to: 0,
-                total: 0,
-              ),
+          meta: response.meta,
         ),
         isLoadingMore: false,
       ));
