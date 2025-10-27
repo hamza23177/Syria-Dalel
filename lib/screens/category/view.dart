@@ -18,6 +18,7 @@ import '../../services/category_service.dart';
 import '../../models/category_model.dart';
 import '../../constant.dart';
 import 'package:shimmer/shimmer.dart';
+import '../../services/preferences_service.dart';
 
 class CategoriesScreen extends StatefulWidget {
   const CategoriesScreen({super.key});
@@ -59,7 +60,21 @@ class _CategoriesScreenState extends State<CategoriesScreen>
     });
 
     _controller.forward();
+
+    _loadSavedLocation();
   }
+
+  Future<void> _loadSavedLocation() async {
+    final saved = await PreferencesService.getSavedLocation();
+
+    if (saved['governorate'] != null && saved['area'] != null) {
+      setState(() {
+        selectedGovernorate = saved['governorate'];
+        selectedArea = saved['area'];
+      });
+    }
+  }
+
 
   void _onScroll() {
     final bloc = context.read<CategoryBloc>();
@@ -244,11 +259,15 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                                 items: governorates
                                     .map((g) => DropdownMenuItem(value: g.name, child: Text(g.name)))
                                     .toList(),
-                                onChanged: (val) {
+                                onChanged: (val) async {
                                   setState(() {
                                     selectedGovernorate = val;
                                     selectedArea = null;
                                   });
+                                  await PreferencesService.saveLocation(
+                                    governorate: selectedGovernorate!,
+                                    area: selectedArea ?? '',
+                                  );
                                   applyFilter();
                                 },
                               );
@@ -308,12 +327,17 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                                 items: filteredAreas
                                     .map((a) => DropdownMenuItem(value: a.name, child: Text(a.name)))
                                     .toList(),
-                                onChanged: (val) {
+                                onChanged: (val) async {
                                   setState(() {
                                     selectedArea = val;
                                   });
+                                  await PreferencesService.saveLocation(
+                                    governorate: selectedGovernorate ?? '',
+                                    area: selectedArea!,
+                                  );
                                   applyFilter();
                                 },
+
                               );
                             } else if (state is AreaError) {
                               return Text("خطأ: ${state.message}");
@@ -384,7 +408,6 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                       if (state is CategoryError) {
                         return Center(child: Text(state.message));
                       }
-
                       return const SizedBox();
                     },
                   ),

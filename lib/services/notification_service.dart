@@ -5,6 +5,32 @@ import 'dart:math';
 import 'package:workmanager/workmanager.dart';
 
 class NotificationService {
+
+  static final NotificationService _instance = NotificationService._internal();
+  factory NotificationService() => _instance;
+  NotificationService._internal();
+
+  bool _initialized = false;
+
+  Future<void> initialize() async {
+    if (_initialized) return;
+    _initialized = true;
+
+    // تهيئة المكتبة (مرة واحدة فقط)
+    print("✅ NotificationService initialized");
+
+    // إعداد القناة، الأذونات، إلخ.
+  }
+
+  Future<void> showNotification({
+    required String title,
+    required String body,
+  }) async {
+    // استخدم flutter_local_notifications مثلاً
+    print("🔔 Notification sent: $title - $body");
+  }
+
+
   static final FlutterLocalNotificationsPlugin _notifications =
   FlutterLocalNotificationsPlugin();
 
@@ -102,4 +128,24 @@ class NotificationService {
 
     print('📅 Daily notifications scheduled.');
   }
+
+  /// 🔔 إشعار واحد يوميًا
+  static Future<void> scheduleDailyNotificationTask() async {
+    await Workmanager().cancelAll(); // لمنع التكرار
+
+    await Workmanager().registerPeriodicTask(
+      'daily_notification_task',
+      'showDailyNotification',
+      frequency: const Duration(hours: 24),
+      initialDelay: const Duration(seconds: 10), // بعد تشغيل التطبيق بـ10 ثواني أول مرة
+      constraints: Constraints(
+        networkType: NetworkType.not_required,
+      ),
+    );
+
+    print('✅ Daily notification task registered');
+  }
+
+
+
 }

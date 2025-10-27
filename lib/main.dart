@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:untitled2/screens/category/bloc.dart';
@@ -21,14 +23,19 @@ import 'package:workmanager/workmanager.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService().initialize();
+  await Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
 
   PaintingBinding.instance.imageCache.maximumSize = 200; // كاش أكبر
   PaintingBinding.instance.imageCache.maximumSizeBytes = 1024 * 1024 * 100; // 100MB
 
   // --- تهيئة Workmanager ---
-  await Workmanager().initialize(
-    callbackDispatcher,
-    isInDebugMode: true,
+  await Workmanager().cancelAll();
+  await Workmanager().registerPeriodicTask(
+    "unique_notification_task",
+    "sendNotification",
+    frequency: const Duration(hours: 6), // مرة كل 6 ساعات مثلاً
+    initialDelay: const Duration(minutes: 5),
   );
 
   // --- تهيئة الإشعارات ---
@@ -45,14 +52,20 @@ void main() async {
 @pragma('vm:entry-point')
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
-    await NotificationService.showImmediateNotification(
-      title: inputData?['title'] ?? '📢 إشعار',
-      body: inputData?['body'] ?? 'تم إرسال الإشعار',
-      payload: inputData?['payload'] ?? '',
-    );
+    final notificationService = NotificationService();
+    await notificationService.initialize();
+
+    if (task == "sendNotification") {
+      await notificationService.showNotification(
+        title: "📢 لا تفوت التحديثات!",
+        body: "جرب آخر الخدمات الجديدة الآن 🚀",
+      );
+    }
+
     return Future.value(true);
   });
 }
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});

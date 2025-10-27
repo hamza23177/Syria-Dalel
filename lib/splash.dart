@@ -48,24 +48,16 @@ class _SplashState extends State<Splash> with TickerProviderStateMixin {
   }
 
   void _initNotifications() async {
-    // إشعار ترحيبي فوري
     await NotificationService.showImmediateNotification(
       title: 'مرحباً بك في دليل سوريا 🇸🇾',
-      body: 'استعد لاكتشاف الخدمات والعروض الرائعة اليوم! 👀',
+      body: 'ابدأ رحلتك لاكتشاف أفضل الخدمات والعروض في سوريا اليوم!',
       payload: 'welcome',
     );
 
-    // إشعارات يومية ذكية
-    await NotificationService.scheduleDailyNotification();
-
-    // إشعار تجريبي بعد 20 ثانية
-    await NotificationService.scheduleDelayedNotification(
-      title: '🔔 تجربة احترافية',
-      body: 'يمكنك الآن تجربة إشعارات دليل سوريا بطريقة احترافية!',
-      delay: Duration(seconds: 20),
-      payload: 'test',
-    );
+    // تشغيل إشعار يومي واحد
+    await NotificationService.scheduleDailyNotificationTask();
   }
+
 
 
   @override
