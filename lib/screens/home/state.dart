@@ -1,4 +1,3 @@
-// bloc/home/home_state.dart
 import 'package:equatable/equatable.dart';
 import '../../models/home_model.dart';
 
@@ -14,16 +13,15 @@ class HomeLoading extends HomeState {}
 class HomeLoaded extends HomeState {
   final HomeData data;
   final bool isLoadingMore;
-
-  HomeLoaded(this.data, {this.isLoadingMore = false});
+  final bool reachedEnd;
+  HomeLoaded(this.data, {this.isLoadingMore = false, this.reachedEnd = false});
 
   @override
-  List<Object?> get props => [data];
+  List<Object?> get props => [data, isLoadingMore, reachedEnd];
 }
 
 class HomeError extends HomeState {
   final String message;
-
   HomeError(this.message);
 
   @override

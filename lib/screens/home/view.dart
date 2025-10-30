@@ -1,4 +1,5 @@
 // screens/home/home_view.dart
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:carousel_slider/carousel_slider.dart';
@@ -41,10 +42,20 @@ class _HomeScreenState extends State<HomeScreen> {
   void _onScroll() {
     final bloc = context.read<HomeBloc>();
     if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200) {
+        _scrollController.position.maxScrollExtent - 250 &&
+        !bloc.isLoadingMore &&
+        bloc.hasMore) {
+      bloc.add(LoadMoreHomeData(page: bloc.currentPage + 1));
+    }
+    if (bloc.cachedData != null &&
+        _scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 250 &&
+        !bloc.isLoadingMore &&
+        bloc.hasMore) {
       bloc.add(LoadMoreHomeData(page: bloc.currentPage + 1));
     }
   }
+
 
   @override
   void dispose() {
@@ -202,47 +213,73 @@ class _HomeScreenState extends State<HomeScreen> {
 
                       const SizedBox(height: 20),
 
-                      SectionTitle(title: "الفئات"),
-                      buildGridOrMessage(
-                        items: filteredCategories,
-                        emptyMessage: "لا توجد فئات لهذه المنطقة",
-                        gridBuilder: () => CategoryHorizontalList(categories: filteredCategories),
+                      // SectionTitle(title: "الفئات"),
+                      // buildGridOrMessage(
+                      //   items: filteredCategories,
+                      //   emptyMessage: "لا توجد فئات لهذه المنطقة",
+                      //   gridBuilder: () => CategoryHorizontalList(categories: filteredCategories),
+                      // ),
+                      SectionTitleWithMore(
+                        title: "الفئات",
+                        onViewAll: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => CategoriesScreen()));
+                        },
+                      ),
+                      CategoryHorizontalList(
+                        categories: filteredCategories,
+                        onEndReached: () {
+                          context.read<HomeBloc>().add(LoadMoreHomeData(page: context.read<HomeBloc>().currentPage + 1));
+                        },
                       ),
 
                       const SizedBox(height: 20),
 
                       SectionTitle(title: "الفئات الفرعية"),
-                      buildGridOrMessage(
-                        items: filteredSubCategories,
-                        emptyMessage: "لا توجد فئات فرعية لهذه المنطقة",
-                        gridBuilder: () => SubCategoryList(subCategories: filteredSubCategories),
+                      SubCategoryList(
+                        subCategories: filteredSubCategories,
+                        onEndReached: () {
+                          context.read<HomeBloc>().add(LoadMoreHomeData(page: context.read<HomeBloc>().currentPage + 1));
+                        },
                       ),
 
                       const SizedBox(height: 20),
 
                       SectionTitle(title: "الخدمات"),
-                      buildGridOrMessage(
-                        items: filteredProducts,
-                        emptyMessage: "لا توجد منتجات لهذه المنطقة",
-                        gridBuilder: () => ProductGrid(products: filteredProducts),
+                      ProductGrid(
+                        products: filteredProducts,
+                        onEndReached: () {
+                          context.read<HomeBloc>().add(LoadMoreHomeData(page: context.read<HomeBloc>().currentPage + 1));
+                        },
                       ),
-                      if (state.isLoadingMore)
+                      if (state.reachedEnd)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 20),
+                          child: Center(
+                            child: Text(
+                              "🎉 تم عرض كل الخدمات المتاحة",
+                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        )
+                      else if (state.isLoadingMore)
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 24),
                           child: Center(
                             child: SizedBox(
                               width: 32,
                               height: 32,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 3,
-                              ),
+                              child: CircularProgressIndicator(strokeWidth: 3),
                             ),
                           ),
                         ),
                     ],
                   ),
                 );
-              } else if (state is HomeError) {
+              }
+              else if (state is HomeError) {
                 return Center(
                   child: Padding(
                     padding: const EdgeInsets.all(20.0),
@@ -304,68 +341,122 @@ class SectionTitle extends StatelessWidget {
   }
 }
 
-class CategoryHorizontalList extends StatelessWidget {
+class CategoryHorizontalList extends StatefulWidget {
   final List<Category> categories;
-  const CategoryHorizontalList({required this.categories});
+  final VoidCallback onEndReached;
+
+  const CategoryHorizontalList({
+    required this.categories,
+    required this.onEndReached,
+  });
+
+  @override
+  _CategoryHorizontalListState createState() => _CategoryHorizontalListState();
+}
+
+class _CategoryHorizontalListState extends State<CategoryHorizontalList> {
+  final ScrollController _controller = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(() {
+      if (_controller.position.pixels >= _controller.position.maxScrollExtent - 100) {
+        widget.onEndReached();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 105,
-      child: ListView.builder(
+      height: 110,
+      child: ListView.separated(
+        controller: _controller,
         scrollDirection: Axis.horizontal,
-        itemCount: categories.length,
         padding: const EdgeInsets.symmetric(horizontal: 12),
-        itemBuilder: (context, index) {
-          final cat = categories[index];
-          return GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => CategoriesScreen(), // شاشة كل الكاتيجوري
-                ),
-              );
-            },
-            child: Container(
-              margin: const EdgeInsets.only(left: 12),
+        itemBuilder: (ctx, i) {
+          final cat = widget.categories[i];
+          return InkWell(
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CategoriesScreen())),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              width: 88,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                color: Colors.white,
+                boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8)],
+              ),
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      cat.imageUrl ?? '',
+                    borderRadius: BorderRadius.circular(10),
+                    child: CachedNetworkImage(
+                      imageUrl: cat.imageUrl ?? '',
+                      width: 56,
+                      height: 56,
                       fit: BoxFit.cover,
-                      height: 75,
-                      width: 75,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(cat.name, style: Theme.of(context).textTheme.bodyMedium),
+                  const SizedBox(height: 8),
+                  Text(
+                    cat.name,
+                    style: Theme.of(context).textTheme.bodySmall,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
               ),
             ),
           );
         },
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemCount: widget.categories.length,
       ),
     );
   }
 }
 
-class SubCategoryList extends StatelessWidget {
+
+
+class SubCategoryList extends StatefulWidget {
   final List<SubCategory> subCategories;
-  const SubCategoryList({required this.subCategories});
+  final VoidCallback onEndReached;
+
+  const SubCategoryList({
+    required this.subCategories,
+    required this.onEndReached,
+  });
+
+  @override
+  _SubCategoryListState createState() => _SubCategoryListState();
+}
+
+class _SubCategoryListState extends State<SubCategoryList> {
+  final ScrollController _controller = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(() {
+      if (_controller.position.pixels >=
+          _controller.position.maxScrollExtent - 100) {
+        widget.onEndReached();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       height: 200,
       child: ListView.builder(
+        controller: _controller,
         scrollDirection: Axis.horizontal,
-        itemCount: subCategories.length,
+        itemCount: widget.subCategories.length,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         itemBuilder: (context, index) {
-          final sub = subCategories[index];
+          final sub = widget.subCategories[index];
           return GestureDetector(
             onTap: () {
               Navigator.push(
@@ -394,7 +485,8 @@ class SubCategoryList extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  Text(sub.name, style: Theme.of(context).textTheme.bodyLarge),
+                  Text(sub.name,
+                      style: Theme.of(context).textTheme.bodyLarge),
                 ],
               ),
             ),
@@ -404,10 +496,6 @@ class SubCategoryList extends StatelessWidget {
     );
   }
 }
-
-
-
-
 
 class CategoryCard extends StatelessWidget {
   final String name;
@@ -432,26 +520,51 @@ class CategoryCard extends StatelessWidget {
   }
 }
 
-class ProductGrid extends StatelessWidget {
+class ProductGrid extends StatefulWidget {
   final List<Product> products;
-  const ProductGrid({required this.products});
+  final VoidCallback onEndReached;
+
+  const ProductGrid({
+    required this.products,
+    required this.onEndReached,
+  });
+
+  @override
+  _ProductGridState createState() => _ProductGridState();
+}
+
+class _ProductGridState extends State<ProductGrid> {
+  final ScrollController _controller = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(() {
+      if (_controller.position.pixels >=
+          _controller.position.maxScrollExtent - 100) {
+        widget.onEndReached();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return GridView.builder(
+      controller: _controller,
       padding: const EdgeInsets.all(12),
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: products.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+      itemCount: widget.products.length,
+      gridDelegate:
+      const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
         childAspectRatio: 0.75,
       ),
       itemBuilder: (ctx, i) {
-        final product = products[i];
-        return ProductCard(product: product); // ✅ نمرر الـ Product كامل
+        final product = widget.products[i];
+        return ProductCard(product: product);
       },
     );
   }
@@ -474,7 +587,18 @@ class ProductCard extends StatelessWidget {
           Expanded(
             child: ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-              child: Image.network(product.imageUrl, fit: BoxFit.cover),
+              child: Image.network(
+                product.imageUrl,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Container(
+                    color: Colors.grey.shade100,
+                    child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                  );
+                },
+                errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, color: Colors.grey),
+              ),
             ),
           ),
           Padding(
@@ -505,3 +629,32 @@ class ProductCard extends StatelessWidget {
   }
 }
 
+class SectionTitleWithMore extends StatelessWidget {
+  final String title;
+  final VoidCallback onViewAll;
+
+  const SectionTitleWithMore({
+    required this.title,
+    required this.onViewAll,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleLarge),
+          TextButton(
+            onPressed: onViewAll,
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primary,
+            ),
+            child: const Text("مشاهدة الجميع ›"),
+          ),
+        ],
+      ),
+    );
+  }
+}
