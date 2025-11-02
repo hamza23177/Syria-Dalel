@@ -11,6 +11,7 @@ import '../ads/bloc.dart';
 import '../ads/event.dart';
 import '../ads/view.dart';
 import '../category/view.dart';
+import '../contact/view.dart';
 import '../details/view.dart';
 import '../sub/view.dart';
 import 'bloc.dart';
@@ -117,20 +118,53 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Scaffold(
           appBar: AppBar(
             backgroundColor: AppColors.background,
-            elevation: 0.8,
+            elevation: 0,
             centerTitle: false,
-            title: Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                "دليل سوريا",
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.3,
+            title: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // ✅ العنوان الرئيسي
+                Text(
+                  "دليل سوريا",
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.3,
+                  ),
                 ),
-              ),
+
+                // ✅ زر أنيق وغير مزعج
+                TextButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => ContactView()),
+                    );
+                  },
+                  icon: Icon(
+                    Icons.add_circle_outline,
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
+                  label: Text(
+                    "أضف خدمتك الآن",
+                    style: TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    foregroundColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            iconTheme: const IconThemeData(color: AppColors.primary),
           ),
           body: BlocBuilder<HomeBloc, HomeState>(
             builder: (context, state) {
@@ -334,9 +368,12 @@ class SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8),
-      child: Text(title, style: Theme.of(context).textTheme.titleLarge),
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8),
+        child: Text(title, style: Theme.of(context).textTheme.titleLarge),
+      ),
     );
   }
 }
@@ -369,49 +406,52 @@ class _CategoryHorizontalListState extends State<CategoryHorizontalList> {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 110,
-      child: ListView.separated(
-        controller: _controller,
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        itemBuilder: (ctx, i) {
-          final cat = widget.categories[i];
-          return InkWell(
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CategoriesScreen())),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              width: 88,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(14),
-                color: Colors.white,
-                boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8)],
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: CachedNetworkImage(
-                      imageUrl: cat.imageUrl ?? '',
-                      width: 56,
-                      height: 56,
-                      fit: BoxFit.cover,
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: SizedBox(
+        height: 110,
+        child: ListView.separated(
+          controller: _controller,
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          itemBuilder: (ctx, i) {
+            final cat = widget.categories[i];
+            return InkWell(
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CategoriesScreen())),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                width: 88,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  color: Colors.white,
+                  boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8)],
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: CachedNetworkImage(
+                        imageUrl: cat.imageUrl ?? '',
+                        width: 56,
+                        height: 56,
+                        fit: BoxFit.cover,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    cat.name,
-                    style: Theme.of(context).textTheme.bodySmall,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    Text(
+                      cat.name,
+                      style: Theme.of(context).textTheme.bodySmall,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
-            ),
-          );
-        },
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemCount: widget.categories.length,
+            );
+          },
+          separatorBuilder: (_, __) => const SizedBox(width: 12),
+          itemCount: widget.categories.length,
+        ),
       ),
     );
   }
@@ -419,6 +459,7 @@ class _CategoryHorizontalListState extends State<CategoryHorizontalList> {
 
 
 
+// ✅ تصميم عصري للفئات الفرعية
 class SubCategoryList extends StatefulWidget {
   final List<SubCategory> subCategories;
   final VoidCallback onEndReached;
@@ -439,8 +480,7 @@ class _SubCategoryListState extends State<SubCategoryList> {
   void initState() {
     super.initState();
     _controller.addListener(() {
-      if (_controller.position.pixels >=
-          _controller.position.maxScrollExtent - 100) {
+      if (_controller.position.pixels >= _controller.position.maxScrollExtent - 100) {
         widget.onEndReached();
       }
     });
@@ -448,54 +488,96 @@ class _SubCategoryListState extends State<SubCategoryList> {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 200,
-      child: ListView.builder(
-        controller: _controller,
-        scrollDirection: Axis.horizontal,
-        itemCount: widget.subCategories.length,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        itemBuilder: (context, index) {
-          final sub = widget.subCategories[index];
-          return GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => SubCategoryScreen(
-                    categoryId: sub.category.id,
-                    categoryName: sub.category.name,
-                  ),
-                ),
-              );
-            },
-            child: Container(
-              width: MediaQuery.of(context).size.width * 0.45,
-              margin: const EdgeInsets.only(left: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      sub.imageUrl ?? '',
-                      fit: BoxFit.cover,
-                      height: 130,
-                      width: double.infinity,
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: SizedBox(
+        height: 160,
+        child: ListView.builder(
+          controller: _controller,
+          scrollDirection: Axis.horizontal,
+          itemCount: widget.subCategories.length,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          itemBuilder: (context, index) {
+            final sub = widget.subCategories[index];
+            return GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SubCategoryScreen(
+                      categoryId: sub.category.id,
+                      categoryName: sub.category.name,
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Text(sub.name,
-                      style: Theme.of(context).textTheme.bodyLarge),
-                ],
+                );
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                margin: const EdgeInsets.only(right: 12),
+                width: MediaQuery.of(context).size.width * 0.6,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Stack(
+                  children: [
+                    // الصورة
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: CachedNetworkImage(
+                        imageUrl: sub.imageUrl ?? '',
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                      ),
+                    ),
+                    // التدرج والاسم
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.black.withOpacity(0.6),
+                            Colors.transparent,
+                          ],
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 10,
+                      left: 10,
+                      right: 10,
+                      child: Text(
+                        sub.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
 }
+
 
 class CategoryCard extends StatelessWidget {
   final String name;
@@ -505,17 +587,20 @@ class CategoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Expanded(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.network(image, fit: BoxFit.cover),
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Column(
+        children: [
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(image, fit: BoxFit.cover),
+            ),
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(name, style: Theme.of(context).textTheme.bodyMedium),
-      ],
+          const SizedBox(height: 4),
+          Text(name, style: Theme.of(context).textTheme.bodyMedium),
+        ],
+      ),
     );
   }
 }
@@ -549,23 +634,26 @@ class _ProductGridState extends State<ProductGrid> {
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      controller: _controller,
-      padding: const EdgeInsets.all(12),
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: widget.products.length,
-      gridDelegate:
-      const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: 0.75,
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: GridView.builder(
+        controller: _controller,
+        padding: const EdgeInsets.all(12),
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: widget.products.length,
+        gridDelegate:
+        const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          childAspectRatio: 0.75,
+        ),
+        itemBuilder: (ctx, i) {
+          final product = widget.products[i];
+          return ProductCard(product: product);
+        },
       ),
-      itemBuilder: (ctx, i) {
-        final product = widget.products[i];
-        return ProductCard(product: product);
-      },
     );
   }
 }
@@ -577,57 +665,120 @@ class ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 3,
-      color: AppColors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-              child: Image.network(
-                product.imageUrl,
-                fit: BoxFit.cover,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Container(
-                    color: Colors.grey.shade100,
-                    child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                  );
-                },
-                errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, color: Colors.grey),
-              ),
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: GestureDetector(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ServiceDetailScreen(serviceId: product.id),
             ),
+          );
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black12,
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Text(product.name, style: Theme.of(context).textTheme.bodyLarge),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ServiceDetailScreen(serviceId: product.id), // ✅ الآن الـ id متوفر
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ✅ الصورة
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+                child: CachedNetworkImage(
+                  imageUrl: product.imageUrl,
+                  height: 130,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
+              ),
+
+              // ✅ المحتوى
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        product.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        product.area ?? '',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      const Spacer(),
+
+                      // ✅ الزر
+                      // ✅ الزر الجديد الهادئ
+                      SizedBox(
+                        width: double.infinity,
+                        child: TextButton.icon(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ServiceDetailScreen(serviceId: product.id),
+                              ),
+                            );
+                          },
+                          icon: Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 14,
+                            color: AppColors.primary,
+                          ),
+                          label: Text(
+                            "عرض",
+                            style: TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              side: BorderSide(color: AppColors.primary.withOpacity(0.3)),
+                            ),
+                            backgroundColor: AppColors.primary.withOpacity(0.05),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accent,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
               ),
-              child: const Text("عرض التفاصيل"),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 }
+
 
 class SectionTitleWithMore extends StatelessWidget {
   final String title;
@@ -640,20 +791,23 @@ class SectionTitleWithMore extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(title, style: Theme.of(context).textTheme.titleLarge),
-          TextButton(
-            onPressed: onViewAll,
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.primary,
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(title, style: Theme.of(context).textTheme.titleLarge),
+            TextButton(
+              onPressed: onViewAll,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+              ),
+              child: const Text("مشاهدة الجميع ›"),
             ),
-            child: const Text("مشاهدة الجميع ›"),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
