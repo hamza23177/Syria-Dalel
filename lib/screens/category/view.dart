@@ -39,6 +39,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
   List<Category> filteredCategories = [];
   List<Governorate> governorates = [];
   List<Area> areas = [];
+  List<Category> displayedCategories = [];
 
   late AnimationController _controller;
   late Animation<double> _animation;
@@ -91,18 +92,18 @@ class _CategoriesScreenState extends State<CategoriesScreen>
 
   void applyFilter() {
     if (selectedGovernorate == null || selectedArea == null) {
-      filteredCategories = [];
-      return;
+      displayedCategories = allCategories;
+    } else {
+      displayedCategories = allCategories.where((cat) {
+        final gMatch = cat.area.governorate.name == selectedGovernorate;
+        final aMatch = cat.area.name == selectedArea;
+        return gMatch && aMatch;
+      }).toList();
     }
 
-    filteredCategories = allCategories.where((cat) {
-      bool governorateMatch = cat.area.governorate.name == selectedGovernorate;
-      bool areaMatch = cat.area.name == selectedArea;
-      return governorateMatch && areaMatch;
-    }).toList();
-
-    setState(() {}); // ✅ مهم عشان يحدّث الواجهة
+    setState(() {});
   }
+
 
   @override
   void dispose() {
@@ -204,10 +205,15 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                   allCategories = state.response.data;
                 }
 
-                // ✅ ما نفلتر مباشرة إلا إذا المحافظات والمناطق تحددت
+                // أول تحميل
+                displayedCategories = allCategories;
+
+                // إذا كان المستخدم اختار محافظة ومنطقة مسبقًا
                 if (selectedGovernorate != null && selectedArea != null) {
                   applyFilter();
                 }
+
+                setState(() {});
               }
             },
 
@@ -247,6 +253,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                                 }
                               }
                               return DropdownButtonFormField<String>(
+                                isExpanded: true,
                                 decoration: InputDecoration(
                                   filled: true,
                                   fillColor: AppColors.white,
@@ -315,6 +322,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                               }
 
                               return DropdownButtonFormField<String>(
+                                isExpanded: true,
                                 decoration: InputDecoration(
                                   filled: true,
                                   fillColor: AppColors.white,
@@ -370,7 +378,8 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                       }
 
                       if (state is CategoryLoaded) {
-                        final categories = state.response.data;
+                        final categories = displayedCategories;
+
 
                         return NotificationListener<ScrollNotification>(
                           onNotification: (scrollInfo) {
@@ -510,10 +519,9 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                   flex: 6,
                   child: ClipRRect(
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                    child: CachedNetworkImage(
-                      imageUrl: (category.imageUrl.isNotEmpty)
-                          ? category.imageUrl
-                          : 'https://invalid.url', // رابط وهمي لتجنب الخطأ
+                    child: (category.imageUrl != null && category.imageUrl!.isNotEmpty)
+                        ? CachedNetworkImage(
+                      imageUrl: category.imageUrl!,
                       fit: BoxFit.cover,
                       width: double.infinity,
                       placeholder: (context, url) => Container(
@@ -530,7 +538,13 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                           size: 40,
                         ),
                       ),
+                    )
+                        : Image.asset(
+                      'assets/images/person.png',
+                      fit: BoxFit.cover,
+                      width: double.infinity,
                     ),
+
                   ),
                 ),
                 Expanded(

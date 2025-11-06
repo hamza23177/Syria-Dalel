@@ -26,8 +26,8 @@ class Category {
   final int id;
   final String name;
   final String description;
-  final int imageId;
-  final String imageUrl;
+  final int? imageId;
+  final String? imageUrl;
   final Area area;
   final String createdAt;
   final String updatedAt;
@@ -48,8 +48,10 @@ class Category {
       id: json['id'],
       name: json['name'],
       description: json['description'],
-      imageId: json['image_id'],
-      imageUrl: json['image_url'],
+      imageId: json['image_id'] is int
+          ? json['image_id']
+          : int.tryParse('${json['image_id']}'),
+      imageUrl: json['image_url']?.toString(),
       area: Area.fromJson(json['area']),
       createdAt: json['created_at'],
       updatedAt: json['updated_at'],
