@@ -8,6 +8,7 @@ import 'bloc.dart';
 import 'state.dart';
 import '../../models/ad_model.dart';
 import '../../constant.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 
 class AdCarouselView extends StatefulWidget {
@@ -21,16 +22,35 @@ class _AdCarouselViewState extends State<AdCarouselView> {
   final CarouselSliderController _controller = CarouselSliderController();
   int _current = 0;
   bool _showHint = true; // للتحكم في ظهور النص
+  bool _isConnected = true;
 
   @override
   void initState() {
     super.initState();
+    _checkConnection();
     // إخفاء النص بعد 3 ثوانٍ
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
         setState(() => _showHint = false);
       }
     });
+  }
+
+  Future<void> _checkConnection() async {
+    final result = await Connectivity().checkConnectivity();
+    setState(() {
+      _isConnected = result != ConnectivityResult.none;
+    });
+
+    if (!_isConnected) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("أنت تعمل بدون إنترنت — يتم عرض الإعلانات المخزنة"),
+          backgroundColor: Colors.orangeAccent,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   @override

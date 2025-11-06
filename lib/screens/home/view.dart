@@ -3,8 +3,12 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:carousel_slider/carousel_slider.dart';
+import 'package:untitled2/repositories/ad_repository.dart';
 import 'package:untitled2/screens/home/skeleton.dart';
 import '../../constant.dart';
+import '../../local/ad_cache.dart';
+import '../../local/home_cache.dart';
+import '../../repositories/home_repository.dart';
 import '../../services/ad_service.dart';
 import '../../services/notification_service.dart';
 import '../ads/bloc.dart';
@@ -43,7 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _onScroll() {
     final bloc = context.read<HomeBloc>();
     if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 250 &&
+            _scrollController.position.maxScrollExtent - 250 &&
         !bloc.isLoadingMore &&
         bloc.hasMore) {
       bloc.add(LoadMoreHomeData(page: bloc.currentPage + 1));
@@ -57,35 +61,40 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-
   @override
   void dispose() {
     _scrollController.dispose();
     super.dispose();
   }
 
-
-
   void applyFilter(HomeData home) {
     setState(() {
       // فلترة الفئات
-      filteredCategories = home.categories.where((cat) {
-        bool governorateMatch = selectedGovernorate == null || cat.area.governorate.name == selectedGovernorate;
-        bool areaMatch = selectedArea == null || cat.area.name == selectedArea;
-        return governorateMatch && areaMatch;
-      }).toList();
+      filteredCategories =
+          home.categories.where((cat) {
+            bool governorateMatch =
+                selectedGovernorate == null ||
+                cat.area.governorate.name == selectedGovernorate;
+            bool areaMatch =
+                selectedArea == null || cat.area.name == selectedArea;
+            return governorateMatch && areaMatch;
+          }).toList();
 
       // فلترة الفئات الفرعية
-      filteredSubCategories = home.subCategories.where((sub) {
-        return filteredCategories.any((cat) => cat.id == sub.category.id);
-      }).toList();
+      filteredSubCategories =
+          home.subCategories.where((sub) {
+            return filteredCategories.any((cat) => cat.id == sub.category.id);
+          }).toList();
 
       // فلترة المنتجات
-      filteredProducts = home.products.where((prod) {
-        bool governorateMatch = selectedGovernorate == null || prod.governorate == selectedGovernorate;
-        bool areaMatch = selectedArea == null || prod.area == selectedArea;
-        return governorateMatch && areaMatch;
-      }).toList();
+      filteredProducts =
+          home.products.where((prod) {
+            bool governorateMatch =
+                selectedGovernorate == null ||
+                prod.governorate == selectedGovernorate;
+            bool areaMatch = selectedArea == null || prod.area == selectedArea;
+            return governorateMatch && areaMatch;
+          }).toList();
     });
   }
 
@@ -100,7 +109,9 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Center(
           child: Text(
             emptyMessage,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: AppColors.primary),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyLarge?.copyWith(color: AppColors.primary),
           ),
         ),
       );
@@ -114,7 +125,12 @@ class _HomeScreenState extends State<HomeScreen> {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: BlocProvider(
-        create: (_) => HomeBloc(HomeService())..add(LoadHomeData()),
+        create: (_) => HomeBloc(
+          HomeRepository(
+            service: HomeService(),
+            cache: HomeCache(),
+          ),
+        )..add(LoadHomeData()),
         child: Scaffold(
           appBar: AppBar(
             backgroundColor: AppColors.background,
@@ -156,7 +172,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     foregroundColor: AppColors.primary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
@@ -176,9 +195,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   if (mounted) applyFilter(homeData!);
                 });
 
-                final areasForSelectedGovernorate = selectedGovernorate == null
-                    ? homeData!.areas
-                    : homeData!.areas.where((a) => a.governorate.name == selectedGovernorate).toList();
+                final areasForSelectedGovernorate =
+                    selectedGovernorate == null
+                        ? homeData!.areas
+                        : homeData!.areas
+                            .where(
+                              (a) => a.governorate.name == selectedGovernorate,
+                            )
+                            .toList();
 
                 return SingleChildScrollView(
                   controller: _scrollController,
@@ -187,29 +211,53 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       // --- Hero Carousel ---
                       BlocProvider(
-                        create: (_) => AdBloc(AdService())..add(FetchAdsEvent()),
+                        create: (_) => AdBloc(
+                          AdRepository(
+                            api: AdService(),
+                            cache: AdCache(),
+                          ),
+                        )..add(FetchAdsEvent()),
                         child: const AdCarouselView(),
-                      ),// ✅ هنا نضع الإعلان الاحترافي
+                      ),
                       const SizedBox(height: 24),
 
                       // --- Dropdown Filters ---
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8.0,
+                        ), // قلل التباعد قليلًا
                         child: Row(
                           children: [
-                            Expanded(
+                            Flexible(
+                              flex: 1,
                               child: DropdownButtonFormField<String>(
                                 decoration: InputDecoration(
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 8,
+                                  ),
                                   filled: true,
                                   fillColor: AppColors.white,
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
                                   labelText: "المحافظة",
-                                  labelStyle: Theme.of(context).textTheme.bodyMedium,
+                                  labelStyle:
+                                      Theme.of(context).textTheme.bodyMedium,
                                 ),
                                 value: selectedGovernorate,
-                                items: homeData!.governorates.map((g) {
-                                  return DropdownMenuItem(value: g.name, child: Text(g.name));
-                                }).toList(),
+                                items:
+                                    homeData!.governorates.map((g) {
+                                      return DropdownMenuItem(
+                                        value: g.name,
+                                        child: Text(
+                                          g.name,
+                                          overflow:
+                                              TextOverflow
+                                                  .ellipsis, // ✅ يمنع تمدد النص
+                                        ),
+                                      );
+                                    }).toList(),
                                 onChanged: (val) {
                                   setState(() {
                                     selectedGovernorate = val;
@@ -219,20 +267,37 @@ class _HomeScreenState extends State<HomeScreen> {
                                 },
                               ),
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
+                            const SizedBox(width: 8),
+                            Flexible(
+                              flex: 1,
                               child: DropdownButtonFormField<String>(
                                 decoration: InputDecoration(
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 8,
+                                  ),
                                   filled: true,
                                   fillColor: AppColors.white,
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
                                   labelText: "المنطقة",
-                                  labelStyle: Theme.of(context).textTheme.bodyMedium,
+                                  labelStyle:
+                                      Theme.of(context).textTheme.bodyMedium,
                                 ),
                                 value: selectedArea,
-                                items: areasForSelectedGovernorate.map((a) {
-                                  return DropdownMenuItem(value: a.name, child: Text(a.name));
-                                }).toList(),
+                                items:
+                                    areasForSelectedGovernorate.map((a) {
+                                      return DropdownMenuItem(
+                                        value: a.name,
+                                        child: Text(
+                                          a.name,
+                                          overflow:
+                                              TextOverflow
+                                                  .ellipsis, // ✅ يمنع التمدد
+                                        ),
+                                      );
+                                    }).toList(),
                                 onChanged: (val) {
                                   setState(() {
                                     selectedArea = val;
@@ -256,13 +321,22 @@ class _HomeScreenState extends State<HomeScreen> {
                       SectionTitleWithMore(
                         title: "الفئات",
                         onViewAll: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => CategoriesScreen()));
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => CategoriesScreen(),
+                            ),
+                          );
                         },
                       ),
                       CategoryHorizontalList(
                         categories: filteredCategories,
                         onEndReached: () {
-                          context.read<HomeBloc>().add(LoadMoreHomeData(page: context.read<HomeBloc>().currentPage + 1));
+                          context.read<HomeBloc>().add(
+                            LoadMoreHomeData(
+                              page: context.read<HomeBloc>().currentPage + 1,
+                            ),
+                          );
                         },
                       ),
 
@@ -272,7 +346,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       SubCategoryList(
                         subCategories: filteredSubCategories,
                         onEndReached: () {
-                          context.read<HomeBloc>().add(LoadMoreHomeData(page: context.read<HomeBloc>().currentPage + 1));
+                          context.read<HomeBloc>().add(
+                            LoadMoreHomeData(
+                              page: context.read<HomeBloc>().currentPage + 1,
+                            ),
+                          );
                         },
                       ),
 
@@ -282,7 +360,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       ProductGrid(
                         products: filteredProducts,
                         onEndReached: () {
-                          context.read<HomeBloc>().add(LoadMoreHomeData(page: context.read<HomeBloc>().currentPage + 1));
+                          context.read<HomeBloc>().add(
+                            LoadMoreHomeData(
+                              page: context.read<HomeBloc>().currentPage + 1,
+                            ),
+                          );
                         },
                       ),
                       if (state.reachedEnd)
@@ -291,7 +373,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Center(
                             child: Text(
                               "🎉 تم عرض كل الخدمات المتاحة",
-                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              style: Theme.of(
+                                context,
+                              ).textTheme.bodyLarge?.copyWith(
                                 color: Colors.grey[600],
                                 fontWeight: FontWeight.w500,
                               ),
@@ -312,20 +396,25 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 );
-              }
-              else if (state is HomeError) {
+              } else if (state is HomeError) {
                 return Center(
                   child: Padding(
                     padding: const EdgeInsets.all(20.0),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.error_outline, size: 60, color: Colors.redAccent),
+                        Icon(
+                          Icons.error_outline,
+                          size: 60,
+                          color: Colors.redAccent,
+                        ),
                         const SizedBox(height: 16),
                         Text(
                           state.message,
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          style: Theme.of(
+                            context,
+                          ).textTheme.bodyLarge?.copyWith(
                             color: Colors.redAccent,
                             fontWeight: FontWeight.bold,
                           ),
@@ -398,7 +487,8 @@ class _CategoryHorizontalListState extends State<CategoryHorizontalList> {
   void initState() {
     super.initState();
     _controller.addListener(() {
-      if (_controller.position.pixels >= _controller.position.maxScrollExtent - 100) {
+      if (_controller.position.pixels >=
+          _controller.position.maxScrollExtent - 100) {
         widget.onEndReached();
       }
     });
@@ -417,7 +507,11 @@ class _CategoryHorizontalListState extends State<CategoryHorizontalList> {
           itemBuilder: (ctx, i) {
             final cat = widget.categories[i];
             return InkWell(
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CategoriesScreen())),
+              onTap:
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => CategoriesScreen()),
+                  ),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 250),
                 width: 88,
@@ -432,10 +526,18 @@ class _CategoryHorizontalListState extends State<CategoryHorizontalList> {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(10),
                       child: CachedNetworkImage(
-                        imageUrl: cat.imageUrl ?? '',
+                        imageUrl: (cat.imageUrl.isNotEmpty)
+                            ? cat.imageUrl
+                            : 'https://invalid.url',
                         width: 56,
                         height: 56,
                         fit: BoxFit.cover,
+                        errorWidget: (context, url, error) => Image.asset(
+                          'assets/images/person.png',
+                          fit: BoxFit.cover,
+                          width: 56,
+                          height: 56,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -456,8 +558,6 @@ class _CategoryHorizontalListState extends State<CategoryHorizontalList> {
     );
   }
 }
-
-
 
 // ✅ تصميم عصري للفئات الفرعية
 class SubCategoryList extends StatefulWidget {
@@ -480,7 +580,8 @@ class _SubCategoryListState extends State<SubCategoryList> {
   void initState() {
     super.initState();
     _controller.addListener(() {
-      if (_controller.position.pixels >= _controller.position.maxScrollExtent - 100) {
+      if (_controller.position.pixels >=
+          _controller.position.maxScrollExtent - 100) {
         widget.onEndReached();
       }
     });
@@ -504,10 +605,11 @@ class _SubCategoryListState extends State<SubCategoryList> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => SubCategoryScreen(
-                      categoryId: sub.category.id,
-                      categoryName: sub.category.name,
-                    ),
+                    builder:
+                        (_) => SubCategoryScreen(
+                          categoryId: sub.category.id,
+                          categoryName: sub.category.name,
+                        ),
                   ),
                 );
               },
@@ -531,10 +633,21 @@ class _SubCategoryListState extends State<SubCategoryList> {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(16),
                       child: CachedNetworkImage(
-                        imageUrl: sub.imageUrl ?? '',
+                        imageUrl: (sub.imageUrl.isNotEmpty)
+                            ? sub.imageUrl
+                            : 'https://invalid.url', // رابط وهمي لتجنب الخطأ
                         fit: BoxFit.cover,
                         width: double.infinity,
                         height: double.infinity,
+                        placeholder: (context, url) => const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        errorWidget: (context, url, error) => Image.asset(
+                          'assets/images/person.png', // الصورة الافتراضية
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
+                        ),
                       ),
                     ),
                     // التدرج والاسم
@@ -563,7 +676,9 @@ class _SubCategoryListState extends State<SubCategoryList> {
                           color: Colors.white,
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
+                          shadows: [
+                            Shadow(blurRadius: 4, color: Colors.black54),
+                          ],
                         ),
                       ),
                     ),
@@ -577,7 +692,6 @@ class _SubCategoryListState extends State<SubCategoryList> {
     );
   }
 }
-
 
 class CategoryCard extends StatelessWidget {
   final String name;
@@ -609,10 +723,7 @@ class ProductGrid extends StatefulWidget {
   final List<Product> products;
   final VoidCallback onEndReached;
 
-  const ProductGrid({
-    required this.products,
-    required this.onEndReached,
-  });
+  const ProductGrid({required this.products, required this.onEndReached});
 
   @override
   _ProductGridState createState() => _ProductGridState();
@@ -642,8 +753,7 @@ class _ProductGridState extends State<ProductGrid> {
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: widget.products.length,
-        gridDelegate:
-        const SliverGridDelegateWithFixedCrossAxisCount(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
           mainAxisSpacing: 12,
           crossAxisSpacing: 12,
@@ -657,7 +767,6 @@ class _ProductGridState extends State<ProductGrid> {
     );
   }
 }
-
 
 class ProductCard extends StatelessWidget {
   final Product product;
@@ -693,19 +802,35 @@ class ProductCard extends StatelessWidget {
             children: [
               // ✅ الصورة
               ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(18),
+                ),
                 child: CachedNetworkImage(
-                  imageUrl: product.imageUrl,
-                  height: 130,
-                  width: double.infinity,
+                  imageUrl: (product.imageUrl.isNotEmpty)
+                      ? product.imageUrl
+                      : 'https://invalid.url', // لتفادي الخطأ
                   fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: 130,
+                  errorWidget: (context, url, error) => Image.asset(
+                    'assets/images/person.png',
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: 130,
+                  ),
+                  placeholder: (context, url) => const Center(
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
                 ),
               ),
 
               // ✅ المحتوى
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -739,7 +864,10 @@ class ProductCard extends StatelessWidget {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => ServiceDetailScreen(serviceId: product.id),
+                                builder:
+                                    (_) => ServiceDetailScreen(
+                                      serviceId: product.id,
+                                    ),
                               ),
                             );
                           },
@@ -761,9 +889,13 @@ class ProductCard extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(vertical: 6),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
-                              side: BorderSide(color: AppColors.primary.withOpacity(0.3)),
+                              side: BorderSide(
+                                color: AppColors.primary.withOpacity(0.3),
+                              ),
                             ),
-                            backgroundColor: AppColors.primary.withOpacity(0.05),
+                            backgroundColor: AppColors.primary.withOpacity(
+                              0.05,
+                            ),
                           ),
                         ),
                       ),
@@ -779,15 +911,11 @@ class ProductCard extends StatelessWidget {
   }
 }
 
-
 class SectionTitleWithMore extends StatelessWidget {
   final String title;
   final VoidCallback onViewAll;
 
-  const SectionTitleWithMore({
-    required this.title,
-    required this.onViewAll,
-  });
+  const SectionTitleWithMore({required this.title, required this.onViewAll});
 
   @override
   Widget build(BuildContext context) {
@@ -801,9 +929,7 @@ class SectionTitleWithMore extends StatelessWidget {
             Text(title, style: Theme.of(context).textTheme.titleLarge),
             TextButton(
               onPressed: onViewAll,
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.primary,
-              ),
+              style: TextButton.styleFrom(foregroundColor: AppColors.primary),
               child: const Text("مشاهدة الجميع ›"),
             ),
           ],

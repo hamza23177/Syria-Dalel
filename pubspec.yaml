@@ -51,6 +51,9 @@ dependencies:
   flutter_local_notifications: ^19.5.0
   workmanager: ^0.7.0
   shared_preferences: ^2.5.3
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  connectivity_plus: ^7.0.0
 
 dev_dependencies:
   flutter_test:
@@ -84,6 +87,7 @@ flutter:
   assets:
     - assets/images/logo.png
     - assets/images/join_us.png
+    - assets/images/person.png
     - assets/
 
   # An image asset can refer to one or more resolution-specific "variants", see

@@ -18,10 +18,21 @@ class CategoryService {
       if (response.statusCode == 200) {
         return CategoryResponse.fromJson(response.data);
       } else {
-        throw Exception("فشل جلب البيانات: ${response.statusMessage}");
+        throw Exception("⚠️ فشل في تحميل البيانات من الخادم (${response.statusMessage})");
       }
     } on DioException catch (e) {
-      throw Exception("خطأ في الاتصال: ${e.message}");
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout) {
+        throw Exception("⏱️ انتهت مهلة الاتصال بالخادم، يرجى المحاولة لاحقًا.");
+      } else if (e.type == DioExceptionType.connectionError) {
+        throw Exception("📶 لا يوجد اتصال بالإنترنت. تأكد من الاتصال وحاول مجددًا.");
+      } else if (e.response != null) {
+        throw Exception("🚫 خطأ من الخادم (${e.response?.statusCode}): ${e.response?.statusMessage}");
+      } else {
+        throw Exception("❗ حدث خطأ غير متوقع أثناء الاتصال بالخادم.");
+      }
+    } catch (e) {
+      throw Exception("حدث خطأ أثناء تحميل الأقسام: $e");
     }
   }
 }

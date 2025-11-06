@@ -12,10 +12,23 @@ class ContactApi {
       if (response.statusCode == 200 && response.data['status'] == true) {
         return ContactModel.fromJson(response.data['data']);
       } else {
-        throw Exception("فشل جلب بيانات التواصل");
+        throw Exception("حدث خطأ أثناء جلب بيانات التواصل من الخادم");
+      }
+    } on DioException catch (e) {
+      // 🧠 تحديد نوع الخطأ
+      if (e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.unknown) {
+        throw Exception("لا يوجد اتصال بالإنترنت. يرجى التحقق من الشبكة.");
+      } else if (e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.connectionTimeout) {
+        throw Exception("انتهت مهلة الاتصال بالخادم. حاول مجددًا بعد قليل.");
+      } else if (e.response != null) {
+        throw Exception("حدث خطأ في الخادم (${e.response?.statusCode}).");
+      } else {
+        throw Exception("حدث خطأ غير متوقع. حاول مرة أخرى.");
       }
     } catch (e) {
-      throw Exception("خطأ في الاتصال بالخادم: $e");
+      throw Exception("حدث خطأ غير متوقع أثناء الاتصال بالخادم.");
     }
   }
 }

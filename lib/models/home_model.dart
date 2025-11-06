@@ -10,6 +10,13 @@ class Governorate {
       name: json['name'],
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+    };
+  }
 }
 
 class Area {
@@ -26,6 +33,14 @@ class Area {
       governorate: Governorate.fromJson(json['governorate']),
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'governorate': governorate.toJson(),
+    };
+  }
 }
 
 class Category {
@@ -34,7 +49,12 @@ class Category {
   final String imageUrl;
   final Area area;
 
-  Category({required this.id, required this.name, required this.imageUrl, required this.area});
+  Category({
+    required this.id,
+    required this.name,
+    required this.imageUrl,
+    required this.area,
+  });
 
   factory Category.fromJson(Map<String, dynamic> json) {
     return Category(
@@ -44,6 +64,15 @@ class Category {
       area: Area.fromJson(json['area']),
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'image_url': imageUrl,
+      'area': area.toJson(),
+    };
+  }
 }
 
 class SubCategory {
@@ -52,7 +81,12 @@ class SubCategory {
   final String imageUrl;
   final Category category;
 
-  SubCategory({required this.id, required this.name, required this.imageUrl, required this.category});
+  SubCategory({
+    required this.id,
+    required this.name,
+    required this.imageUrl,
+    required this.category,
+  });
 
   factory SubCategory.fromJson(Map<String, dynamic> json) {
     return SubCategory(
@@ -61,6 +95,15 @@ class SubCategory {
       imageUrl: json['image_url'] ?? '',
       category: Category.fromJson(json['category']),
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'image_url': imageUrl,
+      'category': category.toJson(),
+    };
   }
 }
 
@@ -100,6 +143,20 @@ class Product {
       imageUrl3: json['image_url_3'],
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'image_url': imageUrl,
+      'area': area,
+      'governorate': governorate,
+      'category': category,
+      'subcategory': subcategory,
+      'image_url_2': imageUrl2,
+      'image_url_3': imageUrl3,
+    };
+  }
 }
 
 class HomeData {
@@ -135,5 +192,15 @@ class HomeData {
           .map((e) => Product.fromJson(e))
           .toList(),
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'governorates': governorates.map((e) => e.toJson()).toList(),
+      'areas': areas.map((e) => e.toJson()).toList(),
+      'category': categories.map((e) => e.toJson()).toList(),
+      'subCategory': subCategories.map((e) => e.toJson()).toList(),
+      'products': products.map((e) => e.toJson()).toList(),
+    };
   }
 }

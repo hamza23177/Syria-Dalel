@@ -42,7 +42,7 @@ class ContactView extends StatelessWidget {
               if (state is ContactLoading) {
                 return _buildShimmerLoading();
               } else if (state is ContactError) {
-                return Center(child: Text("حدث خطأ: ${state.message}"));
+                return _buildErrorView(context, state.message);
               } else if (state is ContactLoaded) {
                 final c = state.contact;
 
@@ -191,6 +191,68 @@ class ContactView extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildErrorView(BuildContext context, String message) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 60),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // 🖼️ أيقونة الخطأ
+            Icon(
+              Icons.wifi_off_rounded,
+              color: Colors.redAccent.shade200,
+              size: 100,
+            ),
+            const SizedBox(height: 24),
+
+            // 🧾 نص الخطأ الجميل
+            Text(
+              "عذرًا، حدث خطأ!",
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppColors.textLight,
+                height: 1.6,
+              ),
+            ),
+            const SizedBox(height: 30),
+
+            // 🔁 زر إعادة المحاولة
+            ElevatedButton.icon(
+              onPressed: () {
+                context.read<ContactBloc>().add(LoadContactInfo());
+              },
+              icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+              label: const Text(
+                "إعادة المحاولة",
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 4,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
 
   // ✅ تصميم الكارت الاحترافي لوسائل التواصل
   Widget _buildContactCard({

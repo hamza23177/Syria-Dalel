@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:untitled2/repositories/home_repository.dart';
 import 'package:untitled2/screens/category/bloc.dart';
 import 'package:untitled2/screens/category/view.dart';
 import 'package:untitled2/screens/contact/view.dart';
@@ -20,11 +21,16 @@ import 'package:untitled2/services/notification_service.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:workmanager/workmanager.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+
+import 'local/home_cache.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Hive.initFlutter();
   await NotificationService().initialize();
   await Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
+
 
   PaintingBinding.instance.imageCache.maximumSize = 200; // كاش أكبر
   PaintingBinding.instance.imageCache.maximumSizeBytes = 1024 * 1024 * 100; // 100MB
@@ -74,7 +80,14 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
-        BlocProvider(create: (_) => HomeBloc(HomeService())),
+        BlocProvider(
+          create: (_) => HomeBloc(
+            HomeRepository(
+              service: HomeService(),
+              cache: HomeCache(),
+            ),
+          ),
+        ),
         BlocProvider(create: (_) => CategoryBloc(CategoryService())),
         BlocProvider(create: (_) => SubCategoryBloc(SubCategoryService())),
         BlocProvider(create: (_) => ServiceBloc(ServiceApi() as ServiceRepository)),

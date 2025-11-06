@@ -2,52 +2,54 @@ import 'dart:async';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../repositories/home_repository.dart';
 import 'event.dart';
 import 'state.dart';
 import '../../services/home_service.dart';
 import '../../models/home_model.dart';
 
 class HomeBloc extends Bloc<HomeEvent, HomeState> {
-  final HomeService service;
+  final HomeRepository repository;
   int currentPage = 1;
-  bool isLoadingMore = false;
   bool hasMore = true;
+  bool isLoadingMore = false;
   HomeData? cachedData;
 
-  Timer? _throttleTimer;
-
-  HomeBloc(this.service) : super(HomeInitial()) {
+  HomeBloc(this.repository) : super(HomeInitial()) {
     on<LoadHomeData>(_onLoadHomeData);
-    on<LoadMoreHomeData>(_onLoadMoreData);
+    on<LoadMoreHomeData>(_onLoadMoreHomeData);
   }
 
   Future<void> _onLoadHomeData(
       LoadHomeData event, Emitter<HomeState> emit) async {
     emit(HomeLoading());
+
     try {
+      // ✅ عرض الكاش فورًا إذا موجود
+      final cached = await repository.cache.getCachedHomeData();
+      if (cached != null) {
+        cachedData = cached;
+        emit(HomeLoaded(cachedData!));
+      }
+
+      // ✅ جلب البيانات من الإنترنت لاحقًا
       currentPage = 1;
-      hasMore = true;
       final data =
-      await service.fetchHomeData(page: currentPage, perPage: event.perPage);
+      await repository.getHomeData(page: currentPage, perPage: event.perPage);
+
       cachedData = data;
-      emit(HomeLoaded(data, isLoadingMore: false));
-    } on DioError catch (e) {
-      emit(HomeError(_handleDioError(e)));
+      emit(HomeLoaded(data));
     } catch (e) {
-      emit(HomeError("حدث خطأ غير متوقع: ${e.toString()}"));
+      // إذا لم يكن هناك كاش، عرض خطأ
+      if (cachedData == null) emit(HomeError(e.toString()));
     }
   }
 
-  Future<void> _onLoadMoreData(
+  Future<void> _onLoadMoreHomeData(
       LoadMoreHomeData event, Emitter<HomeState> emit) async {
-    if (isLoadingMore || !hasMore) return;
 
-    // 🚫 لا تكمل لو لم يتم تحميل الصفحة الأولى بعد
     if (cachedData == null) return;
-
-    // Throttle لمنع التحميل المكرر السريع
-    if (_throttleTimer?.isActive ?? false) return;
-    _throttleTimer = Timer(const Duration(milliseconds: 400), () {});
+    if (isLoadingMore || !hasMore) return;
 
     isLoadingMore = true;
     emit(HomeLoaded(cachedData!, isLoadingMore: true));
@@ -55,7 +57,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     try {
       currentPage++;
       final data =
-      await service.fetchHomeData(page: currentPage, perPage: event.perPage);
+      await repository.getHomeData(page: currentPage, perPage: event.perPage);
 
       if (data.products.isEmpty &&
           data.categories.isEmpty &&
@@ -68,14 +70,14 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
       }
 
       emit(HomeLoaded(cachedData!, isLoadingMore: false, reachedEnd: !hasMore));
-    } on DioError catch (e) {
-      emit(HomeError(_handleDioError(e)));
-    } catch (e) {
-      emit(HomeError("حدث خطأ غير متوقع: ${e.toString()}"));
+    } catch (_) {
+      // استمر بعرض البيانات المخزنة عند فشل تحميل المزيد
+      emit(HomeLoaded(cachedData!, isLoadingMore: false, reachedEnd: !hasMore));
     }
 
     isLoadingMore = false;
   }
+
 
 
   String _handleDioError(DioError e) {

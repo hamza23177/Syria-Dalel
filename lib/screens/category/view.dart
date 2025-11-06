@@ -19,6 +19,7 @@ import '../../models/category_model.dart';
 import '../../constant.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../services/preferences_service.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class CategoriesScreen extends StatefulWidget {
   const CategoriesScreen({super.key});
@@ -272,7 +273,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                                 },
                               );
                             } else if (state is GovernorateError) {
-                              return Text("خطأ: ${state.message}");
+                              // return Text("خطأ:");
                             }
                             return const SizedBox();
                           },
@@ -340,7 +341,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
 
                               );
                             } else if (state is AreaError) {
-                              return Text("خطأ: ${state.message}");
+                              // return Text("خطأ: ");
                             }
                             return const SizedBox();
                           },
@@ -404,9 +405,13 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                           ),
                         );
                       }
-
                       if (state is CategoryError) {
-                        return Center(child: Text(state.message));
+                        return _buildErrorView(
+                          state.message,
+                              () {
+                            context.read<CategoryBloc>().add(FetchCategories());
+                          },
+                        );
                       }
                       return const SizedBox();
                     },
@@ -420,6 +425,54 @@ class _CategoriesScreenState extends State<CategoriesScreen>
       ),
     );
   }
+
+  Widget _buildErrorView(String message, VoidCallback onRetry) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.wifi_off, color: Colors.redAccent, size: 80),
+            const SizedBox(height: 20),
+            Text(
+              "حدث خطأ أثناء تحميل البيانات",
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              message,
+              style: const TextStyle(
+                fontSize: 16,
+                color: Colors.grey,
+                height: 1.4,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 30),
+            ElevatedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text("إعادة المحاولة"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
 
   Widget card(Category category) {
     double _w = MediaQuery.of(context).size.width;
@@ -457,14 +510,25 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                   flex: 6,
                   child: ClipRRect(
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                    child: Image.network(
-                      category.imageUrl,
+                    child: CachedNetworkImage(
+                      imageUrl: (category.imageUrl.isNotEmpty)
+                          ? category.imageUrl
+                          : 'https://invalid.url', // رابط وهمي لتجنب الخطأ
                       fit: BoxFit.cover,
                       width: double.infinity,
-                      errorBuilder: (_, __, ___) => Container(
+                      placeholder: (context, url) => Container(
+                        color: Colors.grey.shade200,
+                        child: const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                      errorWidget: (context, url, error) => Container(
                         color: Colors.grey.shade300,
-                        child: const Icon(Icons.image_not_supported,
-                            color: AppColors.textLight),
+                        child: const Icon(
+                          Icons.image_not_supported,
+                          color: AppColors.textLight,
+                          size: 40,
+                        ),
                       ),
                     ),
                   ),
