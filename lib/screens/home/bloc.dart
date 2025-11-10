@@ -39,9 +39,12 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
 
       cachedData = data;
       emit(HomeLoaded(data));
+    } on DioError catch (e) {
+      // 🔥 استخدام دالتك الاحترافية هنا
+      final message = _handleDioError(e);
+      if (cachedData == null) emit(HomeError(message));
     } catch (e) {
-      // إذا لم يكن هناك كاش، عرض خطأ
-      if (cachedData == null) emit(HomeError(e.toString()));
+      if (cachedData == null) emit(HomeError("حدث خطأ غير متوقع."));
     }
   }
 
@@ -70,15 +73,18 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
       }
 
       emit(HomeLoaded(cachedData!, isLoadingMore: false, reachedEnd: !hasMore));
-    } catch (_) {
-      // استمر بعرض البيانات المخزنة عند فشل تحميل المزيد
+    }
+    on DioError catch (e) {
+      // 🔥 أيضًا نستخدمها هنا
+      final message = _handleDioError(e);
+      emit(HomeError(message));
+    }
+    catch (_) {
       emit(HomeLoaded(cachedData!, isLoadingMore: false, reachedEnd: !hasMore));
     }
 
     isLoadingMore = false;
   }
-
-
 
   String _handleDioError(DioError e) {
     if (e.type == DioErrorType.connectionTimeout ||

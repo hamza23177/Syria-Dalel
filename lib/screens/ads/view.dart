@@ -6,7 +6,6 @@ import 'package:animate_do/animate_do.dart';
 import 'ad_details_page.dart';
 import 'bloc.dart';
 import 'state.dart';
-import '../../models/ad_model.dart';
 import '../../constant.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
@@ -92,7 +91,7 @@ class _AdCarouselViewState extends State<AdCarouselView> {
                             children: [
                               // الصورة
                               CachedNetworkImage(
-                                imageUrl: ad.firstImageUrl ?? "",
+                                imageUrl: (ad.firstImageUrl ?? "").replaceFirst("http://", "https://"),
                                 fit: BoxFit.cover,
                                 placeholder: (context, url) => Container(
                                   color: AppColors.background.withOpacity(0.2),

@@ -252,6 +252,10 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                                   });
                                 }
                               }
+                              if (selectedGovernorate != null &&
+                                  !governorates.any((g) => g.name == selectedGovernorate)) {
+                                selectedGovernorate = null;
+                              }
                               return DropdownButtonFormField<String>(
                                 isExpanded: true,
                                 decoration: InputDecoration(
@@ -320,6 +324,11 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                                   });
                                 }
                               }
+                              if (selectedArea != null &&
+                                  !filteredAreas.any((a) => a.name == selectedArea)) {
+                                selectedArea = null;
+                              }
+
 
                               return DropdownButtonFormField<String>(
                                 isExpanded: true,
@@ -521,7 +530,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                     child: (category.imageUrl != null && category.imageUrl!.isNotEmpty)
                         ? CachedNetworkImage(
-                      imageUrl: category.imageUrl!,
+                      imageUrl: category.imageUrl!.replaceFirst("http://", "https://"),
                       fit: BoxFit.cover,
                       width: double.infinity,
                       placeholder: (context, url) => Container(
