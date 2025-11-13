@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../local/category_cache.dart';
 import '../../models/category_model.dart';
 import '../../services/category_service.dart';
 import 'event.dart';
@@ -9,7 +10,6 @@ class CategoryBloc extends Bloc<CategoryEvent, CategoryState> {
   int currentPage = 1;
   bool isLoading = false;
   bool hasMore = true;
-
   List<Category> _categories = [];
 
   CategoryBloc(this.service) : super(CategoryInitial()) {
@@ -23,11 +23,17 @@ class CategoryBloc extends Bloc<CategoryEvent, CategoryState> {
     if (isLoading || !hasMore) return;
     isLoading = true;
 
-    // تحميل أول صفحة
+    // 🔹 أول صفحة (نحاول الكاش أولاً)
     if (currentPage == 1) {
-      emit(CategoryLoading());
+      final cached = await CategoryCacheService.getCachedCategories();
+      if (cached != null && cached.data.isNotEmpty) {
+        _categories = cached.data;
+        emit(CategoryLoaded(cached, isLoadingMore: false));
+      } else {
+        emit(CategoryLoading());
+      }
     } else {
-      // التحميل الإضافي
+      // 🔹 تحميل صفحات إضافية (عرض shimmer فقط)
       emit(CategoryLoaded(
         CategoryResponse(
           data: List<Category>.from(_categories),
@@ -58,7 +64,6 @@ class CategoryBloc extends Bloc<CategoryEvent, CategoryState> {
         currentPage++;
       }
 
-      // إصدار الحالة بعد التحميل
       emit(CategoryLoaded(
         CategoryResponse(
           data: List<Category>.from(_categories),
@@ -67,9 +72,27 @@ class CategoryBloc extends Bloc<CategoryEvent, CategoryState> {
         ),
         isLoadingMore: false,
       ));
-
     } catch (e) {
-      emit(CategoryError("فشل في تحميل البيانات: ${e.toString()}"));
+      // 🔥 لا نحذف البيانات القديمة عند الخطأ
+      if (_categories.isNotEmpty) {
+        emit(CategoryLoaded(
+          CategoryResponse(
+            data: List<Category>.from(_categories),
+            links: Links(first: '', last: '', prev: '', next: ''),
+            meta: Meta(
+              currentPage: currentPage,
+              from: 0,
+              lastPage: 0,
+              links: [],
+              path: '',
+              perPage: 0,
+              to: 0,
+              total: 0,
+            ),
+          ),
+          isLoadingMore: false,
+        ));
+      }
     }
 
     isLoading = false;

@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../local/sub_category_cache.dart';
 import '../../models/sub_category_model.dart';
 import '../../services/sub_category_service.dart';
 import 'event.dart';
@@ -6,7 +7,6 @@ import 'state.dart';
 
 class SubCategoryBloc extends Bloc<SubCategoryEvent, SubCategoryState> {
   final SubCategoryService service;
-
   int currentPage = 1;
   bool isLoading = false;
   bool hasMore = true;
@@ -23,9 +23,21 @@ class SubCategoryBloc extends Bloc<SubCategoryEvent, SubCategoryState> {
     if (isLoading || !hasMore) return;
     isLoading = true;
 
+    // 🔹 أول صفحة (جرب الكاش أولاً)
     if (currentPage == 1) {
-      emit(SubCategoryLoading());
+      final cached = await SubCategoryCacheService.getCachedSubCategories(event.categoryId);
+      if (cached != null && cached.data.isNotEmpty) {
+        _subCategories = cached.data;
+        emit(SubCategoryLoaded(
+          subCategories: cached.data,
+          meta: cached.meta,
+          isLoadingMore: false,
+        ));
+      } else {
+        emit(SubCategoryLoading());
+      }
     } else {
+      // 🔹 تحميل صفحات إضافية
       emit(SubCategoryLoaded(
         subCategories: List<SubCategory>.from(_subCategories),
         meta: Meta(
@@ -50,7 +62,6 @@ class SubCategoryBloc extends Bloc<SubCategoryEvent, SubCategoryState> {
       );
 
       final newItems = response.data;
-
       if (newItems.isEmpty) {
         hasMore = false;
       } else {
@@ -64,7 +75,25 @@ class SubCategoryBloc extends Bloc<SubCategoryEvent, SubCategoryState> {
         isLoadingMore: false,
       ));
     } catch (e) {
-      emit(SubCategoryError("فشل في تحميل البيانات: ${e.toString()}"));
+      // 🔥 لا نحذف البيانات القديمة عند الخطأ (كاش موجود)
+      if (_subCategories.isNotEmpty) {
+        emit(SubCategoryLoaded(
+          subCategories: List<SubCategory>.from(_subCategories),
+          meta: Meta(
+            currentPage: currentPage,
+            from: 0,
+            lastPage: 0,
+            links: [],
+            path: '',
+            perPage: 0,
+            to: 0,
+            total: 0,
+          ),
+          isLoadingMore: false,
+        ));
+      } else {
+        emit(SubCategoryError(e.toString()));
+      }
     }
 
     isLoading = false;

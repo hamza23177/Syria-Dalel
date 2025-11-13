@@ -230,7 +230,35 @@ class _ServiceScreenState extends State<ServiceScreen>
                     },
                   );
                 } else if (state is ServiceError) {
-                  return Center(child: Text("خطأ: ${state.message}"));
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline, color: Colors.red, size: 50),
+                        const SizedBox(height: 12),
+                        Text(
+                          state.message,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 16, color: Colors.black54),
+                        ),
+                        const SizedBox(height: 20),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            context.read<ServiceBloc>().add(
+                              FetchServices(subCategoryId: widget.subCategoryId),
+                            );
+                          },
+                          icon: const Icon(Icons.refresh),
+                          label: const Text("إعادة المحاولة"),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xffF57752),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
                 }
                 return const SizedBox();
               },

@@ -88,7 +88,7 @@ class _SubCategoryScreenState extends State<SubCategoryScreen>
             elevation: 0,
             centerTitle: true,
             title: Text(
-              "الأقسام الفرعية - ${widget.categoryName}",
+              "${widget.categoryName}",
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
@@ -249,7 +249,34 @@ class _SubCategoryScreenState extends State<SubCategoryScreen>
                       ),
                     );
                   } else if (state is SubCategoryError) {
-                    return Center(child: Text("خطأ: ${state.message}"));
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                          const SizedBox(height: 12),
+                          Text(
+                            state.message,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 16, color: Colors.black54),
+                          ),
+                          const SizedBox(height: 20),
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              context
+                                  .read<SubCategoryBloc>()
+                                  .add(FetchSubCategories(categoryId: widget.categoryId));
+                            },
+                            icon: const Icon(Icons.refresh),
+                            label: const Text("إعادة المحاولة"),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xffF57752),
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
                   }
                   return const SizedBox();
                 },

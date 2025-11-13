@@ -21,6 +21,7 @@ class ContactModel {
     this.updatedAt,
   });
 
+  // ✅ من JSON إلى كائن
   factory ContactModel.fromJson(Map<String, dynamic> json) {
     return ContactModel(
       id: json['id'],
@@ -30,10 +31,27 @@ class ContactModel {
       whatsapp: json['whatsapp'],
       address: json['address'],
       googleMapLink: json['google_map_link'],
-      createdAt:
-      json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
-      updatedAt:
-      json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'].toString())
+          : null,
+      updatedAt: json['updated_at'] != null
+          ? DateTime.tryParse(json['updated_at'].toString())
+          : null,
     );
+  }
+
+  // ✅ من كائن إلى JSON (لحفظه في الكاش)
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'description': description,
+      'phone': phone,
+      'whatsapp': whatsapp,
+      'address': address,
+      'google_map_link': googleMapLink,
+      'created_at': createdAt?.toIso8601String(),
+      'updated_at': updatedAt?.toIso8601String(),
+    };
   }
 }

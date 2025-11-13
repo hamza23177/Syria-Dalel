@@ -46,7 +46,7 @@ class ServiceBloc extends Bloc<ServiceEvent, ServiceState> {
           ));
         }
       } catch (e) {
-        emit(ServiceError(e.toString()));
+        emit(ServiceError(e.toString().replaceFirst('Exception: ', '')));
       }
     });
 

@@ -388,8 +388,6 @@ class _CategoriesScreenState extends State<CategoriesScreen>
 
                       if (state is CategoryLoaded) {
                         final categories = displayedCategories;
-
-
                         return NotificationListener<ScrollNotification>(
                           onNotification: (scrollInfo) {
                             if (scrollInfo.metrics.pixels >=
@@ -478,11 +476,8 @@ class _CategoriesScreenState extends State<CategoriesScreen>
               icon: const Icon(Icons.refresh),
               label: const Text("إعادة المحاولة"),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                backgroundColor: const Color(0xffF57752),
+                foregroundColor: Colors.white,
               ),
             ),
           ],
@@ -528,7 +523,11 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                   flex: 6,
                   child: ClipRRect(
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                    child: (category.imageUrl != null && category.imageUrl!.isNotEmpty)
+                    child: (category.imageUrl != null &&
+                        category.imageUrl!.isNotEmpty &&
+                        Uri.tryParse(category.imageUrl!)?.hasAbsolutePath == true &&
+                        (category.imageUrl!.startsWith('http://') ||
+                            category.imageUrl!.startsWith('https://')))
                         ? CachedNetworkImage(
                       imageUrl: category.imageUrl!.replaceFirst("http://", "https://"),
                       fit: BoxFit.cover,
@@ -553,7 +552,6 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                       fit: BoxFit.cover,
                       width: double.infinity,
                     ),
-
                   ),
                 ),
                 Expanded(

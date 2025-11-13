@@ -372,7 +372,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 20),
                           child: Center(
                             child: Text(
-                              "🎉 تم عرض كل الخدمات المتاحة",
+                              "🌟 اكتشف المزيد داخل الأقسام!",
                               style: Theme.of(
                                 context,
                               ).textTheme.bodyLarge?.copyWith(
@@ -528,7 +528,7 @@ class _CategoryHorizontalListState extends State<CategoryHorizontalList> {
                       child: CachedNetworkImage(
                         imageUrl: (cat.imageUrl.isNotEmpty)
                             ? cat.imageUrl
-                            : 'https://invalid.url',
+                            : '',
                         width: 56,
                         height: 56,
                         fit: BoxFit.cover,
@@ -635,7 +635,7 @@ class _SubCategoryListState extends State<SubCategoryList> {
                       child: CachedNetworkImage(
                         imageUrl: (sub.imageUrl.isNotEmpty)
                             ? sub.imageUrl
-                            : 'https://invalid.url', // رابط وهمي لتجنب الخطأ
+                            : '', // رابط وهمي لتجنب الخطأ
                         fit: BoxFit.cover,
                         width: double.infinity,
                         height: double.infinity,
@@ -808,7 +808,7 @@ class ProductCard extends StatelessWidget {
                 child: CachedNetworkImage(
                   imageUrl: (product.imageUrl.isNotEmpty)
                       ? product.imageUrl
-                      : 'https://invalid.url', // لتفادي الخطأ
+                      : '', // لتفادي الخطأ
                   fit: BoxFit.cover,
                   width: double.infinity,
                   height: 130,

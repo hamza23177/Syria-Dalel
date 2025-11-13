@@ -8,7 +8,11 @@ class Area {
   final String name;
   final Governorate governorate;
 
-  Area({required this.id, required this.name, required this.governorate});
+  Area({
+    required this.id,
+    required this.name,
+    required this.governorate,
+  });
 
   factory Area.fromJson(Map<String, dynamic> json) {
     return Area(
@@ -17,4 +21,13 @@ class Area {
       governorate: Governorate.fromJson(json['governorate']),
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'governorate': governorate.toJson(), // ✅ تأكد أنها موجودة
+    };
+  }
 }
+

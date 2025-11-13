@@ -19,6 +19,12 @@ class SubCategoryResponse {
       meta: Meta.fromJson(json['meta']),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'data': data.map((e) => e.toJson()).toList(),
+    'links': links.toJson(),
+    'meta': meta.toJson(),
+  };
 }
 
 class SubCategory {
@@ -57,6 +63,18 @@ class SubCategory {
       updatedAt: json['updated_at'],
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'description': description,
+    'category_id': categoryId,
+    'image_id': imageId,
+    'image_url': imageUrl,
+    'category': category.toJson(),
+    'created_at': createdAt,
+    'updated_at': updatedAt,
+  };
 }
 
 class Category {
@@ -80,6 +98,13 @@ class Category {
       area: Area.fromJson(json['area']),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'image_url': imageUrl,
+    'area': area.toJson(),
+  };
 }
 
 class Area {
@@ -100,6 +125,12 @@ class Area {
       governorate: Governorate.fromJson(json['governorate']),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'governorate': governorate.toJson(),
+  };
 }
 
 class Governorate {
@@ -114,6 +145,11 @@ class Governorate {
       name: json['name'],
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+  };
 }
 
 class Links {
@@ -132,6 +168,13 @@ class Links {
       next: json['next'],
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'first': first,
+    'last': last,
+    'prev': prev,
+    'next': next,
+  };
 }
 
 class Meta {
@@ -170,6 +213,17 @@ class Meta {
       total: json['total'] ?? 0,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'current_page': currentPage,
+    'from': from,
+    'last_page': lastPage,
+    'links': links.map((e) => e.toJson()).toList(),
+    'path': path,
+    'per_page': perPage,
+    'to': to,
+    'total': total,
+  };
 }
 
 class LinkItem {
@@ -190,5 +244,10 @@ class LinkItem {
       active: json['active'],
     );
   }
-}
 
+  Map<String, dynamic> toJson() => {
+    'url': url,
+    'label': label,
+    'active': active,
+  };
+}

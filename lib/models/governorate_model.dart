@@ -11,4 +11,14 @@ class Governorate {
       name: json['name'],
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+    };
+  }
+
+  @override
+  String toString() => 'Governorate(id: $id, name: $name)';
 }

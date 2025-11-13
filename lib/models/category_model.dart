@@ -20,6 +20,14 @@ class CategoryResponse {
       meta: Meta.fromJson(json['meta']),
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'data': data.map((e) => e.toJson()).toList(),
+      'links': links.toJson(),
+      'meta': meta.toJson(),
+    };
+  }
 }
 
 class Category {
@@ -57,8 +65,20 @@ class Category {
       updatedAt: json['updated_at'],
     );
   }
-}
 
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'description': description,
+      'image_id': imageId,
+      'image_url': imageUrl,
+      'area': area.toJson(),
+      'created_at': createdAt,
+      'updated_at': updatedAt,
+    };
+  }
+}
 
 class Links {
   final String? first;
@@ -78,6 +98,14 @@ class Links {
     );
   }
 
+  Map<String, dynamic> toJson() {
+    return {
+      'first': first,
+      'last': last,
+      'prev': prev,
+      'next': next,
+    };
+  }
 }
 
 class Meta {
@@ -117,6 +145,18 @@ class Meta {
     );
   }
 
+  Map<String, dynamic> toJson() {
+    return {
+      'current_page': currentPage,
+      'from': from,
+      'last_page': lastPage,
+      'links': links.map((e) => e.toJson()).toList(),
+      'path': path,
+      'per_page': perPage,
+      'to': to,
+      'total': total,
+    };
+  }
 }
 
 class LinkItem {
@@ -136,5 +176,13 @@ class LinkItem {
       label: json['label'],
       active: json['active'],
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'url': url,
+      'label': label,
+      'active': active,
+    };
   }
 }

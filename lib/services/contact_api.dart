@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import '../models/contact_model.dart';
 import '../constant.dart';
+import '../local/contact_cache.dart';
 
 class ContactApi {
   final Dio dio = Dio(BaseOptions(baseUrl: ApiConstants.baseUrl));
@@ -10,24 +11,32 @@ class ContactApi {
       final response = await dio.get("/contact");
 
       if (response.statusCode == 200 && response.data['status'] == true) {
-        return ContactModel.fromJson(response.data['data']);
+        final contact = ContactModel.fromJson(response.data['data']);
+        // 🧠 حفظ البيانات في الكاش بعد كل نجاح
+        await ContactCache.saveContact(contact);
+        return contact;
       } else {
         throw Exception("حدث خطأ أثناء جلب بيانات التواصل من الخادم");
       }
     } on DioException catch (e) {
-      // 🧠 تحديد نوع الخطأ
+      // ✅ عند انقطاع الإنترنت نحاول جلب البيانات من الكاش
       if (e.type == DioExceptionType.connectionError ||
           e.type == DioExceptionType.unknown) {
-        throw Exception("لا يوجد اتصال بالإنترنت. يرجى التحقق من الشبكة.");
-      } else if (e.type == DioExceptionType.receiveTimeout ||
-          e.type == DioExceptionType.connectionTimeout) {
-        throw Exception("انتهت مهلة الاتصال بالخادم. حاول مجددًا بعد قليل.");
-      } else if (e.response != null) {
-        throw Exception("حدث خطأ في الخادم (${e.response?.statusCode}).");
+        final cached = await ContactCache.getCachedContact();
+        if (cached != null) {
+          return cached;
+        } else {
+          throw Exception("لا يوجد اتصال بالإنترنت، ولا توجد بيانات محفوظة.");
+        }
       } else {
-        throw Exception("حدث خطأ غير متوقع. حاول مرة أخرى.");
+        throw Exception("حدث خطأ أثناء الاتصال بالخادم (${e.message}).");
       }
     } catch (e) {
+      // ✅ جلب من الكاش في حال أي خطأ آخر
+      final cached = await ContactCache.getCachedContact();
+      if (cached != null) {
+        return cached;
+      }
       throw Exception("حدث خطأ غير متوقع أثناء الاتصال بالخادم.");
     }
   }
