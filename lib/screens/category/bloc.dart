@@ -60,7 +60,9 @@ class CategoryBloc extends Bloc<CategoryEvent, CategoryState> {
       if (newCategories.isEmpty) {
         hasMore = false;
       } else {
-        _categories = List<Category>.from(_categories)..addAll(newCategories);
+        final existingIds = _categories.map((e) => e.id).toSet();
+        final filtered = newCategories.where((n) => !existingIds.contains(n.id)).toList();
+        _categories = List<Category>.from(_categories)..addAll(filtered);
         currentPage++;
       }
 

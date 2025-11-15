@@ -271,6 +271,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             Flexible(
                               flex: 1,
                               child: DropdownButtonFormField<String>(
+                                isExpanded: true,
                                 decoration: InputDecoration(
                                   contentPadding: const EdgeInsets.symmetric(
                                     horizontal: 10,

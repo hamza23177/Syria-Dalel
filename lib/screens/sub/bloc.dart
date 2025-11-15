@@ -65,7 +65,10 @@ class SubCategoryBloc extends Bloc<SubCategoryEvent, SubCategoryState> {
       if (newItems.isEmpty) {
         hasMore = false;
       } else {
-        _subCategories.addAll(newItems);
+        final existingIds = _subCategories.map((e) => e.id).toSet();
+        final filtered = newItems.where((n) => !existingIds.contains(n.id)).toList();
+
+        _subCategories.addAll(filtered);
         currentPage++;
       }
 
