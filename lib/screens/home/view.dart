@@ -46,20 +46,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onScroll() {
     final bloc = context.read<HomeBloc>();
+
     if (_scrollController.position.pixels >=
-            _scrollController.position.maxScrollExtent - 250 &&
-        !bloc.isLoadingMore &&
-        bloc.hasMore) {
-      bloc.add(LoadMoreHomeData(page: bloc.currentPage + 1));
-    }
-    if (bloc.cachedData != null &&
-        _scrollController.position.pixels >=
-            _scrollController.position.maxScrollExtent - 250 &&
-        !bloc.isLoadingMore &&
+        _scrollController.position.maxScrollExtent - 250 &&
+        !bloc.isLoading &&
         bloc.hasMore) {
       bloc.add(LoadMoreHomeData(page: bloc.currentPage + 1));
     }
   }
+
 
   @override
   void dispose() {
@@ -190,7 +185,8 @@ class _HomeScreenState extends State<HomeScreen> {
               if (state is HomeLoading) {
                 return const HomeSkeleton();
               } else if (state is HomeLoaded) {
-                homeData ??= state.data; // فقط خزّن البيانات عند أول تحميل
+                homeData = state.data; // احفظ البيانات كاملة بما فيها الصفحات الجديدة
+
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (mounted) applyFilter(homeData!);
                 });

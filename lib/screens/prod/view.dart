@@ -170,7 +170,7 @@ class _ServiceScreenState extends State<ServiceScreen>
                                         ? NetworkImage(service.imageUrl!)
                                         : null,
                                     child: service.imageUrl == null
-                                        ? const Icon(Icons.store,
+                                        ? const Icon(Icons.person_2_outlined,
                                         size: 30, color: Colors.grey)
                                         : null,
                                   ),

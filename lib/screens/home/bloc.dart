@@ -11,8 +11,8 @@ import '../../models/home_model.dart';
 class HomeBloc extends Bloc<HomeEvent, HomeState> {
   final HomeRepository repository;
   int currentPage = 1;
+  bool isLoading = false;
   bool hasMore = true;
-  bool isLoadingMore = false;
   HomeData? cachedData;
 
   HomeBloc(this.repository) : super(HomeInitial()) {
@@ -21,70 +21,85 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
   }
 
   Future<void> _onLoadHomeData(
-      LoadHomeData event, Emitter<HomeState> emit) async {
+      LoadHomeData event,
+      Emitter<HomeState> emit,
+      ) async {
+    if (isLoading) return;
+    isLoading = true;
+
     emit(HomeLoading());
 
     try {
-      // ✅ عرض الكاش فورًا إذا موجود
+      // ⚡ عرض الكاش فورا إن وجد
       final cached = await repository.cache.getCachedHomeData();
       if (cached != null) {
         cachedData = cached;
-        emit(HomeLoaded(cachedData!));
+        emit(HomeLoaded(cached, isLoadingMore: false, reachedEnd: false));
       }
 
-      // ✅ جلب البيانات من الإنترنت لاحقًا
+      // تحميل الصفحة الأولى
       currentPage = 1;
-      final data =
-      await repository.getHomeData(page: currentPage, perPage: event.perPage);
+      final data = await repository.getHomeData(page: 1, perPage: event.perPage);
 
       cachedData = data;
-      emit(HomeLoaded(data));
-    } on DioError catch (e) {
-      // 🔥 استخدام دالتك الاحترافية هنا
-      final message = _handleDioError(e);
-      if (cachedData == null) emit(HomeError(message));
+
+      // إذا أقل من perPage إذن هذا آخر Page
+      hasMore = data.products.length == event.perPage;
+
+      emit(HomeLoaded(data, isLoadingMore: false, reachedEnd: !hasMore));
     } catch (e) {
-      if (cachedData == null) emit(HomeError("حدث خطأ غير متوقع."));
+      if (cachedData == null) emit(HomeError("حدث خطأ أثناء التحميل"));
     }
+
+    isLoading = false;
   }
 
+
   Future<void> _onLoadMoreHomeData(
-      LoadMoreHomeData event, Emitter<HomeState> emit) async {
+      LoadMoreHomeData event,
+      Emitter<HomeState> emit,
+      ) async {
+    if (isLoading || !hasMore) return;
+    isLoading = true;
 
-    if (cachedData == null) return;
-    if (isLoadingMore || !hasMore) return;
-
-    isLoadingMore = true;
     emit(HomeLoaded(cachedData!, isLoadingMore: true));
 
     try {
       currentPage++;
-      final data =
-      await repository.getHomeData(page: currentPage, perPage: event.perPage);
 
-      if (data.products.isEmpty &&
-          data.categories.isEmpty &&
-          data.subCategories.isEmpty) {
+      final newData = await repository.getHomeData(
+        page: currentPage,
+        perPage: event.perPage,
+      );
+
+      // **دمج المنتجات الجديدة فقط**
+      cachedData!.products.addAll(newData.products);
+
+      // نفس الشي لو بدك تكبر الكاتيجوري والساب كاتيجوري:
+      cachedData!.categories.addAll(newData.categories);
+      cachedData!.subCategories.addAll(newData.subCategories);
+
+      if (newData.products.length < event.perPage) {
         hasMore = false;
-      } else {
-        cachedData!.products.addAll(data.products);
-        cachedData!.categories.addAll(data.categories);
-        cachedData!.subCategories.addAll(data.subCategories);
       }
 
-      emit(HomeLoaded(cachedData!, isLoadingMore: false, reachedEnd: !hasMore));
-    }
-    on DioError catch (e) {
-      // 🔥 أيضًا نستخدمها هنا
-      final message = _handleDioError(e);
-      emit(HomeError(message));
-    }
-    catch (_) {
-      emit(HomeLoaded(cachedData!, isLoadingMore: false, reachedEnd: !hasMore));
+      emit(HomeLoaded(
+        cachedData!,
+        isLoadingMore: false,
+        reachedEnd: !hasMore,
+      ));
+    } catch (e) {
+      // لا نوقف التطبيق — فقط نوقف التحميل
+      emit(HomeLoaded(
+        cachedData!,
+        isLoadingMore: false,
+        reachedEnd: !hasMore,
+      ));
     }
 
-    isLoadingMore = false;
+    isLoading = false;
   }
+
 
   String _handleDioError(DioError e) {
     if (e.type == DioErrorType.connectionTimeout ||
