@@ -51,7 +51,11 @@ class _HomeScreenState extends State<HomeScreen> {
         _scrollController.position.maxScrollExtent - 250 &&
         !bloc.isLoading &&
         bloc.hasMore) {
-      bloc.add(LoadMoreHomeData(page: bloc.currentPage + 1));
+      bloc.add(
+        LoadMoreHomeData(
+          page: bloc.currentPage + 1,
+        ),
+      );
     }
   }
 
@@ -364,6 +368,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           );
                         },
                       ),
+                      if (state.isLoadingMore)
+                        LoadingMoreIndicator(),
                       if (state.reachedEnd)
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 20),
@@ -935,3 +941,23 @@ class SectionTitleWithMore extends StatelessWidget {
     );
   }
 }
+
+class LoadingMoreIndicator extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      child: Center(
+        child: Container(
+          width: 32,
+          height: 32,
+          child: CircularProgressIndicator(
+            strokeWidth: 3,
+            color: AppColors.primary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+

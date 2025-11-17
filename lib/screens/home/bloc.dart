@@ -60,8 +60,15 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
       Emitter<HomeState> emit,
       ) async {
     if (isLoading || !hasMore) return;
+
+    // إذا لم يكن هناك بيانات أساسًا، لا نحمل المزيد
+    if (cachedData == null) {
+      return;
+    }
+
     isLoading = true;
 
+    // هنا cachedData أصبح مضمون أنه ليس null
     emit(HomeLoaded(cachedData!, isLoadingMore: true));
 
     try {
@@ -72,10 +79,8 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
         perPage: event.perPage,
       );
 
-      // **دمج المنتجات الجديدة فقط**
+      // دمج البيانات
       cachedData!.products.addAll(newData.products);
-
-      // نفس الشي لو بدك تكبر الكاتيجوري والساب كاتيجوري:
       cachedData!.categories.addAll(newData.categories);
       cachedData!.subCategories.addAll(newData.subCategories);
 
@@ -83,22 +88,26 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
         hasMore = false;
       }
 
-      emit(HomeLoaded(
-        cachedData!,
-        isLoadingMore: false,
-        reachedEnd: !hasMore,
-      ));
+      emit(
+        HomeLoaded(
+          cachedData!,
+          isLoadingMore: false,
+          reachedEnd: !hasMore,
+        ),
+      );
     } catch (e) {
-      // لا نوقف التطبيق — فقط نوقف التحميل
-      emit(HomeLoaded(
-        cachedData!,
-        isLoadingMore: false,
-        reachedEnd: !hasMore,
-      ));
+      emit(
+        HomeLoaded(
+          cachedData!,
+          isLoadingMore: false,
+          reachedEnd: !hasMore,
+        ),
+      );
     }
 
     isLoading = false;
   }
+
 
 
   String _handleDioError(DioError e) {
