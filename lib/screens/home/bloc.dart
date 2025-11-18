@@ -60,15 +60,13 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
       Emitter<HomeState> emit,
       ) async {
     if (isLoading || !hasMore) return;
-
-    // إذا لم يكن هناك بيانات أساسًا، لا نحمل المزيد
-    if (cachedData == null) {
-      return;
-    }
+    if (cachedData == null) return;
 
     isLoading = true;
 
-    // هنا cachedData أصبح مضمون أنه ليس null
+    // ⭐ Debounce آمن داخل async
+    await Future.delayed(const Duration(milliseconds: 200));
+
     emit(HomeLoaded(cachedData!, isLoadingMore: true));
 
     try {
@@ -79,7 +77,6 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
         perPage: event.perPage,
       );
 
-      // دمج البيانات
       cachedData!.products.addAll(newData.products);
       cachedData!.categories.addAll(newData.categories);
       cachedData!.subCategories.addAll(newData.subCategories);
@@ -95,7 +92,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
           reachedEnd: !hasMore,
         ),
       );
-    } catch (e) {
+    } catch (_) {
       emit(
         HomeLoaded(
           cachedData!,
@@ -107,6 +104,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
 
     isLoading = false;
   }
+
 
 
 

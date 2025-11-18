@@ -320,7 +320,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       //   gridBuilder: () => CategoryHorizontalList(categories: filteredCategories),
                       // ),
                       SectionTitleWithMore(
-                        title: "الفئات",
+                        title: "الأقسام الرئيسية",
                         onViewAll: () {
                           Navigator.push(
                             context,
@@ -343,7 +343,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                       const SizedBox(height: 20),
 
-                      SectionTitle(title: "الفئات الفرعية"),
+                      SectionTitle(title: "الأقسام الفرعية"),
                       SubCategoryList(
                         subCategories: filteredSubCategories,
                         onEndReached: () {
@@ -499,68 +499,102 @@ class _CategoryHorizontalListState extends State<CategoryHorizontalList> {
 
   @override
   Widget build(BuildContext context) {
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: SizedBox(
-        height: 110,
-        child: ListView.separated(
-          controller: _controller,
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          itemBuilder: (ctx, i) {
-            final cat = widget.categories[i];
-            return InkWell(
-              onTap:
-                  () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => CategoriesScreen()),
+    return SizedBox(
+      height: 150,
+      child: ListView.separated(
+        controller: _controller,
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        itemCount: widget.categories.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 14),
+        itemBuilder: (ctx, i) {
+          final cat = widget.categories[i];
+
+          return GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => CategoriesScreen()),
+              );
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 280),
+              curve: Curves.easeOut,
+              width: 140,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.12),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
                   ),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                width: 88,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  color: Colors.white,
-                  boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8)],
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: Stack(
                   children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: CachedNetworkImage(
-                        imageUrl: (cat.imageUrl.isNotEmpty)
-                            ? cat.imageUrl
-                            : '',
-                        width: 56,
-                        height: 56,
-                        fit: BoxFit.cover,
-                        errorWidget: (context, url, error) => Image.asset(
-                          'assets/images/person.png',
-                          fit: BoxFit.cover,
-                          width: 56,
-                          height: 56,
+                    // ---------------- الصورة ----------------
+                    CachedNetworkImage(
+                      imageUrl: cat.imageUrl,
+                      width: 140,
+                      height: 150,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) =>
+                          Container(color: Colors.grey.shade200),
+                      errorWidget: (context, url, error) =>
+                          Container(color: Colors.grey.shade300),
+                    ),
+
+                    // ---------------- التدرج الجمالي ----------------
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: [
+                            Colors.black.withOpacity(0.45),
+                            Colors.transparent,
+                          ],
                         ),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      cat.name,
-                      style: Theme.of(context).textTheme.bodySmall,
-                      overflow: TextOverflow.ellipsis,
+
+                    // ---------------- اسم القسم ----------------
+                    Positioned(
+                      bottom: 10,
+                      left: 10,
+                      right: 10,
+                      child: Text(
+                        cat.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 17,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black54,
+                              blurRadius: 6,
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
-            );
-          },
-          separatorBuilder: (_, __) => const SizedBox(width: 12),
-          itemCount: widget.categories.length,
-        ),
+            ),
+          );
+        },
       ),
     );
   }
 }
+
 
 // ✅ تصميم عصري للفئات الفرعية
 class SubCategoryList extends StatefulWidget {
