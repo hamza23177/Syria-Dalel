@@ -199,16 +199,15 @@ class _CategoriesScreenState extends State<CategoriesScreen>
           body: BlocListener<CategoryBloc, CategoryState>(
             listener: (context, state) {
               if (state is CategoryLoaded) {
-                if (state.response.meta.currentPage > 1) {
-                  allCategories.addAll(state.response.data);
-                } else {
-                  allCategories = state.response.data;
-                }
+                // دمج ذكي مع إزالة التكرار
+                final newData = state.response.data;
+                final existingIds = allCategories.map((e) => e.id).toSet();
+                final filtered = newData.where((c) => !existingIds.contains(c.id)).toList();
 
-                // أول تحميل
-                displayedCategories = allCategories;
+                allCategories.addAll(filtered);
 
-                // إذا كان المستخدم اختار محافظة ومنطقة مسبقًا
+                // عرض الكل أو حسب الفلتر
+                displayedCategories = List<Category>.from(allCategories);
                 if (selectedGovernorate != null && selectedArea != null) {
                   applyFilter();
                 }
