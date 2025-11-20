@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shimmer/shimmer.dart';
+
+// تأكد من استيراد ملفاتك الصحيحة
 import '../../../models/service_model.dart';
 import '../details/view.dart';
-import '../sub/sub_category_skeleton.dart';
 import 'bloc.dart';
 import 'event.dart';
 import 'state.dart';
+import '../../constant.dart'; // تأكد أن لديك AppColors
 
 class ServiceScreen extends StatefulWidget {
   final int subCategoryId;
@@ -21,293 +25,371 @@ class ServiceScreen extends StatefulWidget {
   _ServiceScreenState createState() => _ServiceScreenState();
 }
 
-class _ServiceScreenState extends State<ServiceScreen>
-    with SingleTickerProviderStateMixin {
+class _ServiceScreenState extends State<ServiceScreen> {
   final ScrollController _scrollController = ScrollController();
-
-  late AnimationController _controller;
-  late Animation<double> _animation;
-  late Animation<double> _animation2;
 
   @override
   void initState() {
     super.initState();
+    // ✅ استدعاء واحد فقط للبيانات عند البدء
     context.read<ServiceBloc>().add(FetchServices(subCategoryId: widget.subCategoryId));
-    _scrollController.addListener(() {
-      if (_scrollController.position.pixels >=
-          _scrollController.position.maxScrollExtent - 300) {
-        // تحميل قبل الوصول للنهاية بـ 300 بكسل
-        context.read<ServiceBloc>().add(
-          FetchServices(subCategoryId: widget.subCategoryId, loadMore: true),
-        );
-      }
-    });
-    context.read<ServiceBloc>().add(FetchServices(subCategoryId: widget.subCategoryId));
-
-    /// Animation init
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
-
-    _animation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    )..addListener(() {
-      setState(() {});
-    });
-
-    _animation2 = Tween<double>(begin: 20, end: 0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    );
-
-    _controller.forward();
-
-    /// استدعاء الخدمات
-    context
-        .read<ServiceBloc>()
-        .add(FetchServices(subCategoryId: widget.subCategoryId));
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    double _w = MediaQuery.of(context).size.width;
-
     return Directionality(
-      textDirection: TextDirection.rtl, // لجعل الواجهة عربية
+      textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: const Color(0xffF5F5F5),
-        appBar: AppBar(
-          backgroundColor: const Color(0xffF57752),
-          elevation: 0,
-          centerTitle: true,
-          title: Text(
-            "الخدمات - ${widget.subCategoryName}",
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          iconTheme: const IconThemeData(color: Colors.white),
-        ),
-        body: Stack(
-          children: [
-            BlocBuilder<ServiceBloc, ServiceState>(
-              builder: (context, state) {
-                if (state is ServiceLoading) {
-                  return ListView.builder(
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: 6, // عدد السكلتونات
-                    itemBuilder: (context, index) {
-                      return SubCategorySkeleton(width: _w);
-                    },
-                  );
-                } else if (state is ServiceLoaded) {
-                  if (state.services.isEmpty) {
-                    return const Center(child: Text("لا توجد خدمات متاحة"));
+        backgroundColor: const Color(0xFFF8F9FA), // نفس خلفية الصفحات السابقة
+        body: BlocBuilder<ServiceBloc, ServiceState>(
+          builder: (context, state) {
+            // 1. حالة التحميل الأولية
+            if (state is ServiceLoading && (state is! ServiceLoaded)) {
+              return _buildLoadingShimmer();
+            }
+
+            // 2. حالة الخطأ
+            else if (state is ServiceError) {
+              return _buildErrorView(context, state.message);
+            }
+
+            // 3. عرض البيانات
+            else if (state is ServiceLoaded) {
+              if (state.services.isEmpty) {
+                return _buildEmptyView(context);
+              }
+
+              return NotificationListener<ScrollNotification>(
+                onNotification: (scrollInfo) {
+                  // ✅ منطق الباجينيشن المحسن والمتوافق مع Slivers
+                  if (scrollInfo.metrics.pixels >=
+                      scrollInfo.metrics.maxScrollExtent - 200 &&
+                      !state.isLoadingMore) {
+                    context.read<ServiceBloc>().add(
+                      FetchServices(
+                          subCategoryId: widget.subCategoryId,
+                          loadMore: true
+                      ),
+                    );
                   }
+                  return false;
+                },
+                child: CustomScrollView(
+                  controller: _scrollController,
+                  slivers: [
+                    // --- Header احترافي ---
+                    SliverAppBar(
+                      expandedHeight: 100.0,
+                      floating: true,
+                      pinned: true,
+                      backgroundColor: const Color(0xFFF8F9FA),
+                      elevation: 0,
+                      centerTitle: false,
+                      leading: IconButton(
+                        icon: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8),
+                            ],
+                          ),
+                          child: const Icon(Icons.arrow_back, color: Colors.black87, size: 20),
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                      flexibleSpace: FlexibleSpaceBar(
+                        titlePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                        title: Text(
+                          widget.subCategoryName,
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 18,
+                          ),
+                        ),
+                      ),
+                    ),
 
-                  return ListView.builder(
-                    controller: _scrollController,
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: state.services.length + (state.isLoadingMore ? 1 : 0),
-                    itemBuilder: (context, index) {
-                      if (index == state.services.length) {
-                          return const Padding(
-                            padding: EdgeInsets.all(12.0),
-                            child: Center(
-                              child: CircularProgressIndicator(),
-                            ),
-                          );
-                      }
-                      final service = state.services[index];
+                    // --- إحصائية بسيطة (اختياري) ---
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+                        child: Text(
+                          "${state.services.length} خدمة متاحة",
+                          style: TextStyle(color: Colors.grey[600], fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
 
-                      return Opacity(
-                        opacity: _animation.value,
-                        child: Transform.translate(
-                          offset: Offset(0, _animation2.value),
-                          child: InkWell(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => ServiceDetailScreen(serviceId: service.id),
+                    // --- قائمة الخدمات ---
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                              (context, index) {
+                            if (index < state.services.length) {
+                              return _buildAnimatedItem(
+                                index,
+                                _ServiceCard(service: state.services[index]),
+                              );
+                            } else {
+                              // مؤشر التحميل السفلي
+                              return const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 20),
+                                child: Center(
+                                  child: SizedBox(
+                                    width: 25, height: 25,
+                                    child: CircularProgressIndicator(strokeWidth: 2.5),
+                                  ),
                                 ),
                               );
-                            },
-                            splashColor: Colors.transparent,
-                            highlightColor: Colors.transparent,
-                            child: Container(
-                              margin: EdgeInsets.fromLTRB(
-                                  _w / 20, _w / 20, _w / 20, 0),
-                              padding: EdgeInsets.all(_w / 20),
-                              height: _w / 3.5,
-                              width: _w,
-                              decoration: BoxDecoration(
-                                color: const Color(0xffEDECEA),
-                                borderRadius: BorderRadius.circular(20),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(.05),
-                                    blurRadius: 10,
-                                  )
-                                ],
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                MainAxisAlignment.spaceBetween,
-                                children: [
-                                  /// صورة الخدمة
-                                  CircleAvatar(
-                                    backgroundColor: Colors.orange.shade50,
-                                    radius: _w / 10,
-                                    backgroundImage: service.imageUrl != null
-                                        ? NetworkImage(service.imageUrl!)
-                                        : null,
-                                    child: service.imageUrl == null
-                                        ? const Icon(Icons.person_2_outlined,
-                                        size: 30, color: Colors.grey)
-                                        : null,
-                                  ),
-
-                                  /// معلومات الخدمة
-                                  Expanded(
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 12),
-                                      child: Column(
-                                        mainAxisAlignment:
-                                        MainAxisAlignment.spaceEvenly,
-                                        crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            service.name,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            textScaleFactor: 1.3,
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color:
-                                              Colors.black.withOpacity(.8),
-                                            ),
-                                          ),
-                                          Text(
-                                            service.address,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                              color:
-                                              Colors.black.withOpacity(.7),
-                                            ),
-                                          ),
-                                          Text(
-                                            service.phone,
-                                            style: const TextStyle(
-                                              color: Colors.deepOrange,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-
-                                  const Icon(Icons.navigate_next,
-                                      color: Colors.black54),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  );
-                } else if (state is ServiceError) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error_outline, color: Colors.red, size: 50),
-                        const SizedBox(height: 12),
-                        Text(
-                          state.message,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 16, color: Colors.black54),
-                        ),
-                        const SizedBox(height: 20),
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            context.read<ServiceBloc>().add(
-                              FetchServices(subCategoryId: widget.subCategoryId),
-                            );
+                            }
                           },
-                          icon: const Icon(Icons.refresh),
-                          label: const Text("إعادة المحاولة"),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xffF57752),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                          ),
+                          childCount: state.services.length + (state.isLoadingMore ? 1 : 0),
                         ),
-                      ],
+                      ),
                     ),
-                  );
-                }
-                return const SizedBox();
-              },
-            ),
 
-            /// Top Decoration (الـ Painter)
-            CustomPaint(
-              painter: MyPainter(),
-              child: Container(height: 0),
-            ),
-          ],
+                    const SliverPadding(padding: EdgeInsets.only(bottom: 30)),
+                  ],
+                ),
+              );
+            }
+            return const SizedBox();
+          },
         ),
+      ),
+    );
+  }
+
+  // --- Helper Widgets ---
+
+  Widget _buildAnimatedItem(int index, Widget child) {
+    return TweenAnimationBuilder<double>(
+      duration: Duration(milliseconds: 400 + (index % 5) * 100),
+      tween: Tween(begin: 0.0, end: 1.0),
+      curve: Curves.easeOutQuad,
+      builder: (context, value, child) {
+        return Transform.translate(
+          offset: Offset(0, 30 * (1 - value)),
+          child: Opacity(opacity: value, child: child),
+        );
+      },
+      child: child,
+    );
+  }
+
+  Widget _buildLoadingShimmer() {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: 6,
+      itemBuilder: (_, __) => Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Shimmer.fromColors(
+          baseColor: Colors.grey.shade300,
+          highlightColor: Colors.grey.shade100,
+          child: Container(
+            height: 110,
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyView(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off_rounded, size: 80, color: Colors.grey[300]),
+          const SizedBox(height: 16),
+          Text("عذراً، لا توجد خدمات متاحة حالياً", style: TextStyle(color: Colors.grey[600])),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorView(BuildContext context, String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 60, color: Colors.redAccent),
+          const SizedBox(height: 16),
+          Text(message, style: TextStyle(color: Colors.grey[600])),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: () => context.read<ServiceBloc>().add(FetchServices(subCategoryId: widget.subCategoryId)),
+            child: const Text("إعادة المحاولة"),
+          ),
+        ],
       ),
     );
   }
 }
 
-class MyPainter extends CustomPainter {
+// --- تصميم بطاقة الخدمة (Service Card) المحسن ---
+class _ServiceCard extends StatelessWidget {
+  final ServiceModel service; // تأكد من نوع الموديل
+
+  const _ServiceCard({required this.service});
+
   @override
-  void paint(Canvas canvas, Size size) {
-    Paint paint_1 = Paint()
-      ..color = const Color(0xffF57752)
-      ..style = PaintingStyle.fill;
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ServiceDetailScreen(serviceId: service.id),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 1. صورة الخدمة
+                Stack(
+                  children: [
+                    Container(
+                      width: 90,
+                      height: 90,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        color: Colors.grey[100],
+                        border: Border.all(color: Colors.grey.shade100),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: CachedNetworkImage(
+                          imageUrl: service.imageUrl ?? "",
+                          fit: BoxFit.cover,
+                          placeholder: (_, __) => const Icon(Icons.person, color: Colors.grey),
+                          errorWidget: (_, __, ___) => const Icon(Icons.person, color: Colors.grey),
+                        ),
+                      ),
+                    ),
+                    // أيقونة التحقق (اختياري)
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.verified, size: 16, color: AppColors.primary),
+                      ),
+                    )
+                  ],
+                ),
 
-    Path path_1 = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width * .1, 0)
-      ..cubicTo(size.width * .05, 0, 0, 20, 0, size.width * .08);
+                const SizedBox(width: 14),
 
-    Path path_2 = Path()
-      ..moveTo(size.width, 0)
-      ..lineTo(size.width * .9, 0)
-      ..cubicTo(
-          size.width * .95, 0, size.width, 20, size.width, size.width * .08);
+                // 2. التفاصيل
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // الاسم
+                      Text(
+                        service.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
 
-    Paint paint_2 = Paint()
-      ..color = const Color(0xffF57752)
-      ..strokeWidth = 1
-      ..style = PaintingStyle.stroke;
+                      // العنوان
+                      Row(
+                        children: [
+                          Icon(Icons.location_on_outlined, size: 14, color: Colors.grey[500]),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              service.address,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                            ),
+                          ),
+                        ],
+                      ),
 
-    Path path_3 = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0);
+                      const SizedBox(height: 10),
 
-    canvas.drawPath(path_1, paint_1);
-    canvas.drawPath(path_2, paint_1);
-    canvas.drawPath(path_3, paint_2);
+                      // رقم الهاتف وزر التفاعل
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // رقم الهاتف بتصميم جذاب
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.phone, size: 12, color: AppColors.primary),
+                                const SizedBox(width: 6),
+                                Text(
+                                  service.phone,
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.bold
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // زر سهم صغير
+                          const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
+                        ],
+                      )
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
