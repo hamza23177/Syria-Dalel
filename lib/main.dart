@@ -25,53 +25,48 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 import 'local/home_cache.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Hive.initFlutter();
-  await NotificationService().initialize();
-  await Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
-
-
-  PaintingBinding.instance.imageCache.maximumSize = 200; // كاش أكبر
-  PaintingBinding.instance.imageCache.maximumSizeBytes = 1024 * 1024 * 100; // 100MB
-
-  // --- تهيئة Workmanager ---
-  await Workmanager().cancelAll();
-  await Workmanager().registerPeriodicTask(
-    "unique_notification_task",
-    "sendNotification",
-    frequency: const Duration(hours: 6), // مرة كل 6 ساعات مثلاً
-    initialDelay: const Duration(minutes: 5),
-  );
-
-  // --- تهيئة الإشعارات ---
-  await NotificationService.init();
-
-  // --- تهيئة المنطقة الزمنية ---
-  tz.initializeTimeZones();
-  tz.setLocalLocation(tz.getLocation('Asia/Damascus'));
-
-  runApp(const MyApp());
-}
-
-// --- @pragma مهم جدًا لـ Workmanager ---
+// --- نقطة الدخول للمهام الخلفية (يجب أن تكون Top-Level) ---
 @pragma('vm:entry-point')
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
-    final notificationService = NotificationService();
-    await notificationService.initialize();
+    print("⚙️ Background Task Started: $task");
 
-    if (task == "sendNotification") {
-      await notificationService.showNotification(
-        title: "📢 لا تفوت التحديثات!",
-        body: "جرب آخر الخدمات الجديدة الآن 🚀",
-      );
+    // تهيئة الإشعارات داخل الخلفية لأن الـ main thread قد يكون مغلقاً
+    await NotificationService.init();
+
+    if (task == "marketingTask") {
+      // إرسال الإشعار العشوائي
+      await NotificationService.sendRandomMarketingNotification();
     }
 
     return Future.value(true);
   });
 }
 
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // 1. تهيئة Hive
+  await Hive.initFlutter();
+
+  // 2. تهيئة Workmanager
+  await Workmanager().initialize(
+    callbackDispatcher,
+    isInDebugMode: false, // اجعلها true أثناء التجريب لرؤية الإشعارات فوراً
+  );
+
+  // 3. تهيئة الإشعارات
+  await NotificationService.init();
+
+  // 4. جدولة المهمة اليومية
+  await NotificationService.scheduleDailyTask();
+
+  // تحسين أداء الصور
+  PaintingBinding.instance.imageCache.maximumSize = 200;
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 1024 * 1024 * 150; // 150MB
+
+  runApp(const MyApp());
+}
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -79,25 +74,16 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MultiBlocProvider(
+      // ... (نفس المزودات الخاصة بك) ...
       providers: [
-        BlocProvider(
-          create: (_) => HomeBloc(
-            HomeRepository(
-              service: HomeService(),
-              cache: HomeCache(),
-            ),
-          ),
-        ),
+        BlocProvider(create: (_) => HomeBloc(HomeRepository(service: HomeService(), cache: HomeCache()))),
         BlocProvider(create: (_) => CategoryBloc(CategoryService())),
         BlocProvider(create: (_) => SubCategoryBloc(SubCategoryService())),
-        BlocProvider(create: (_) => ServiceBloc(ServiceApi() as ServiceRepository)),
+        BlocProvider(create: (_) => ServiceBloc(ServiceRepository(ServiceApi()))), // تأكد من النوع الصحيح هنا
       ],
       child: MaterialApp(
+        debugShowCheckedModeBanner: false, // إخفاء شريط Debug
         title: "دليل سوريا",
-        routes: {
-          '/categories': (_) => CategoriesScreen(),
-          '/contact': (_) => ContactView(),
-        },
         theme: ThemeData(
           fontFamily: AppFonts.primaryFont,
           primaryColor: AppColors.primary,
@@ -106,6 +92,7 @@ class MyApp extends StatelessWidget {
             primary: AppColors.primary,
             secondary: AppColors.accent,
           ),
+          useMaterial3: true, // استخدام Material 3 لتصميم أحدث
         ),
         home: Splash(),
       ),

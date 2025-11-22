@@ -1,151 +1,135 @@
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/timezone.dart' as tz;
-import 'package:timezone/data/latest_all.dart' as tz;
 import 'dart:math';
+import 'dart:ui';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/data/latest_all.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 import 'package:workmanager/workmanager.dart';
 
 class NotificationService {
-
+  // Singleton Pattern
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
   NotificationService._internal();
 
-  bool _initialized = false;
+  static final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
 
-  Future<void> initialize() async {
-    if (_initialized) return;
-    _initialized = true;
-
-    // تهيئة المكتبة (مرة واحدة فقط)
-    print("✅ NotificationService initialized");
-
-    // إعداد القناة، الأذونات، إلخ.
-  }
-
-  Future<void> showNotification({
-    required String title,
-    required String body,
-  }) async {
-    // استخدم flutter_local_notifications مثلاً
-    print("🔔 Notification sent: $title - $body");
-  }
-
-
-  static final FlutterLocalNotificationsPlugin _notifications =
-  FlutterLocalNotificationsPlugin();
+  // --- 🧠 بنك الرسائل التسويقية (Marketing Message Bank) ---
+  static final List<Map<String, String>> _marketingMessages = [
+    {
+      'title': '🚗 هل تعطلت سيارتك؟',
+      'body': 'لا تقلق! تصفح قسم ميكانيك السيارات في دليل سوريا واعثر على أقرب ورشة إليك فوراً.'
+    },
+    {
+      'title': '🍽️ محتار شو تتغدا اليوم؟',
+      'body': 'اكتشف أفضل المطاعم والعروض الحصرية حولك الآن بضغطة زر.'
+    },
+    {
+      'title': '💡 فرصة لزيادة مبيعاتك',
+      'body': 'أصحاب الخدمات المميزة ينضمون إلينا يومياً. أضف خدمتك الآن وكن مثلهم!'
+    },
+    {
+      'title': '🏠 تبحث عن منزل أحلامك؟',
+      'body': 'قسم العقارات لدينا يحتوي على خيارات مميزة. ألقِ نظرة قد تجد ما تبحث عنه.'
+    },
+    {
+      'title': '🔥 عروض لا تفوت!',
+      'body': 'تجار سوريا يقدمون خصومات رائعة اليوم. تصفح التطبيق ولا تضيع الفرصة.'
+    },
+    {
+      'title': '🩺 صحتك تهمنا',
+      'body': 'دليل كامل للأطباء والمشافي والصيدليات المناوبة بالقرب منك.'
+    },
+    {
+      'title': '👋 اشتقنا لك!',
+      'body': 'لقد تمت إضافة خدمات جديدة في منطقتك. ادخل لتستكشفها.'
+    },
+  ];
 
   /// --- تهيئة الإشعارات ---
   static Future<void> init() async {
     tz.initializeTimeZones();
-    tz.setLocalLocation(tz.getLocation('Asia/Damascus'));
+    // ضبط التوقيت المحلي لدمشق
+    try {
+      tz.setLocalLocation(tz.getLocation('Asia/Damascus'));
+    } catch (e) {
+      print("Could not set location to Damascus, using default local.");
+    }
 
-    const androidInit = AndroidInitializationSettings('ic_daleel_notification');
+    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher'); // تأكد من وجود الأيقونة
+    // const iosInit = DarwinInitializationSettings(); // إذا كنت ستدعم iOS لاحقاً
+
     const initSettings = InitializationSettings(android: androidInit);
 
-    await _notifications.initialize(initSettings);
+    await _notifications.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: (details) {
+        // هنا يمكنك التعامل مع النقر على الإشعار (مثلاً فتح صفحة معينة)
+        print("Clicked Payload: ${details.payload}");
+      },
+    );
 
-    print('✅ NotificationService initialized');
+    print('✅ NotificationService Initialized Successfully');
   }
 
-  /// --- إشعار فوري احترافي ---
-  static Future<void> showImmediateNotification({
+  /// --- إظهار إشعار فوري ---
+  static Future<void> showNotification({
     required String title,
     required String body,
-    String payload = '',
+    String? payload,
   }) async {
     final androidDetails = AndroidNotificationDetails(
-      'instant_channel',
-      'إشعارات فورية',
+      'daily_channel_id',
+      'إشعارات دليل سوريا اليومية',
+      channelDescription: 'قناة مخصصة للنصائح والعروض اليومية',
       importance: Importance.max,
       priority: Priority.high,
       playSound: true,
-      sound: RawResourceAndroidNotificationSound('daleel_sound'),
-      icon: 'ic_daleel_notification',
-      ticker: 'دليل سوريا',
       enableVibration: true,
       styleInformation: BigTextStyleInformation(body, htmlFormatBigText: true),
+      color: const Color(0xffF57752), // لون التطبيق الأساسي
     );
 
     final details = NotificationDetails(android: androidDetails);
 
-    await _notifications.show(Random().nextInt(10000), title, body, details, payload: payload);
-    print('🔔 Notification sent: $title');
+    // نستخدم Random ID لكي لا يستبدل الإشعار القديم إذا لم يقرأه المستخدم
+    await _notifications.show(
+      Random().nextInt(100000),
+      title,
+      body,
+      details,
+      payload: payload,
+    );
   }
 
-  /// --- إشعار بعد مدة محددة ---
-  static Future<void> scheduleDelayedNotification({
-    required String title,
-    required String body,
-    required Duration delay,
-    String payload = '',
-  }) async {
-    Workmanager().registerOneOffTask(
-      Random().nextInt(100000).toString(),
-      'showNotification',
-      inputData: {'title': title, 'body': body, 'payload': payload},
-      initialDelay: delay,
-      constraints: Constraints(networkType: NetworkType.not_required),
+  /// --- المنطق الذكي لإرسال إشعار عشوائي ---
+  static Future<void> sendRandomMarketingNotification() async {
+    final random = Random();
+    final messageIndex = random.nextInt(_marketingMessages.length);
+    final message = _marketingMessages[messageIndex];
+
+    await showNotification(
+      title: message['title']!,
+      body: message['body']!,
+      payload: 'marketing_random',
     );
-    print('⏱️ Notification scheduled after ${delay.inSeconds} seconds');
   }
 
-  /// --- إشعار يومي ذكي ---
-  static Future<void> scheduleDailyNotification() async {
-    final now = tz.TZDateTime.now(tz.local);
+  /// --- جدولة المهمة الدورية (Workmanager) ---
+  static Future<void> scheduleDailyTask() async {
+    await Workmanager().cancelAll(); // تنظيف المهام القديمة لمنع التضارب
 
-    // مثال: إشعار صباحي
-    tz.TZDateTime morning = tz.TZDateTime(tz.local, now.year, now.month, now.day, 8, 30);
-    if (morning.isBefore(now)) morning = morning.add(Duration(days: 1));
-
-    await scheduleDelayedNotification(
-      title: 'صباح الخير ☀️',
-      body: 'اكتشف جديد دليل سوريا اليوم! 🌟 خدمات، عروض، وأخبار مذهلة بانتظارك.',
-      delay: morning.difference(now),
-      payload: 'services',
-    );
-
-    // إشعار ظهر/عصر
-    tz.TZDateTime noon = tz.TZDateTime(tz.local, now.year, now.month, now.day, 13, 30);
-    if (noon.isBefore(now)) noon = noon.add(Duration(days: 1));
-
-    await scheduleDelayedNotification(
-      title: '🌟 تذكير بالاشتراك',
-      body: 'لا تفوت الفرصة! اشترك الآن وتمتع بأحدث الخدمات والعروض اليومية.',
-      delay: noon.difference(now),
-      payload: 'subscribe',
-    );
-
-    // إشعار مساءً
-    tz.TZDateTime evening = tz.TZDateTime(tz.local, now.year, now.month, now.day, 18, 0);
-    if (evening.isBefore(now)) evening = evening.add(Duration(days: 1));
-
-    await scheduleDelayedNotification(
-      title: '💡 نصيحة اليوم',
-      body: 'استكشف خدمة جديدة في دليل سوريا وكن أول من يشارك التجربة مع أصدقائك!',
-      delay: evening.difference(now),
-      payload: 'services',
-    );
-
-    print('📅 Daily notifications scheduled.');
-  }
-
-  /// 🔔 إشعار واحد يوميًا
-  static Future<void> scheduleDailyNotificationTask() async {
-    await Workmanager().cancelAll(); // لمنع التكرار
-
+    // تسجيل مهمة دورية تعمل كل 24 ساعة
     await Workmanager().registerPeriodicTask(
-      'daily_notification_task',
-      'showDailyNotification',
+      "unique_daily_marketing_task",
+      "marketingTask",
       frequency: const Duration(hours: 24),
-      initialDelay: const Duration(seconds: 10), // بعد تشغيل التطبيق بـ10 ثواني أول مرة
+      // initialDelay: const Duration(hours: 12), // اختياري: لتبدأ في وقت محدد تقريباً
       constraints: Constraints(
-        networkType: NetworkType.not_required,
+        networkType: NetworkType.not_required, // يعمل حتى بدون نت (الإشعار محلي)
+        requiresBatteryNotLow: false,
       ),
+      existingWorkPolicy: ExistingWorkPolicy.keep, // الحفاظ على الجدول الزمني
     );
-
-    print('✅ Daily notification task registered');
+    print('📅 Daily Marketing Task Scheduled');
   }
-
-
-
 }
