@@ -1,36 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../../constant.dart'; // تأكد من المسار
-import '../../models/home_model.dart'; // تأكد من المسار
-// استيراد صفحات التفاصيل للانتقال إليها
-import '../details/view.dart';
-import '../category/view.dart'; // أو SubCategoryScreen
+import 'package:shimmer/shimmer.dart'; // تأكد من إضافتها للجمالية
+import 'package:untitled2/screens/home/search_bloc.dart';
+import '../../constant.dart';
+import '../../models/service_model.dart'; // موديل الخدمة
+import '../details/view.dart'; // صفحة التفاصيل
 
 class ProfessionalSearchDelegate extends SearchDelegate {
-  final List<Product> products;
-  final List<Category> categories;
-  final List<SubCategory> subCategories;
+  final GlobalSearchBloc searchBloc;
 
-  ProfessionalSearchDelegate({
-    required this.products,
-    required this.categories,
-    required this.subCategories,
-  });
+  ProfessionalSearchDelegate(this.searchBloc);
 
-  // تخصيص ثيم شريط البحث ليتناسب مع التطبيق
   @override
   ThemeData appBarTheme(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     return theme.copyWith(
-      appBarTheme: AppBarTheme(
+      appBarTheme: const AppBarTheme(
         backgroundColor: Colors.white,
         elevation: 0,
-        iconTheme: IconThemeData(color: AppColors.primary),
+        iconTheme: IconThemeData(color: Colors.black),
         toolbarHeight: 70,
       ),
       inputDecorationTheme: InputDecorationTheme(
         border: InputBorder.none,
         hintStyle: TextStyle(color: Colors.grey[400], fontSize: 16),
+        // hintText: "ابحث عن خدمة، منتج...",
       ),
       textSelectionTheme: TextSelectionThemeData(
         cursorColor: AppColors.primary,
@@ -43,10 +38,11 @@ class ProfessionalSearchDelegate extends SearchDelegate {
     return [
       if (query.isNotEmpty)
         IconButton(
-          icon: const Icon(Icons.clear_rounded),
+          icon: const Icon(Icons.clear_rounded, color: Colors.grey),
           onPressed: () {
             query = '';
             showSuggestions(context);
+            searchBloc.add(SearchQueryChanged('')); // تصفير البحث
           },
         ),
     ];
@@ -62,187 +58,141 @@ class ProfessionalSearchDelegate extends SearchDelegate {
 
   @override
   Widget buildResults(BuildContext context) {
-    return _buildSearchResults(context);
+    searchBloc.add(SearchQueryChanged(query));
+    return _buildSearchResults();
   }
 
   @override
   Widget buildSuggestions(BuildContext context) {
-    if (query.isEmpty) {
-      return _buildRecentOrSuggested(context);
-    }
-    return _buildSearchResults(context);
+    // بمجرد الكتابة، نرسل الحدث للبلوك (مع Debounce تلقائي هناك)
+    searchBloc.add(SearchQueryChanged(query));
+    return _buildSearchResults();
   }
 
-  // --- واجهة الاقتراحات (عندما يكون البحث فارغاً) ---
-  Widget _buildRecentOrSuggested(BuildContext context) {
-    return Container(
-      color: const Color(0xFFF8F9FA),
-      child: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          const Text(
-            "اكتشف شيئاً جديداً 🔥",
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
-          ),
-          const SizedBox(height: 15),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: categories.take(6).map((cat) {
-              return ActionChip(
-                label: Text(cat.name),
-                avatar: CircleAvatar(
-                  backgroundImage: CachedNetworkImageProvider(cat.imageUrl),
-                  backgroundColor: Colors.transparent,
-                ),
-                backgroundColor: Colors.white,
-                elevation: 2,
-                shadowColor: Colors.black12,
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                onPressed: () {
-                  query = cat.name;
-                  showResults(context);
-                },
-              );
-            }).toList(),
-          ),
-        ],
-      ),
+  Widget _buildSearchResults() {
+    return BlocBuilder<GlobalSearchBloc, SearchState>(
+      bloc: searchBloc,
+      builder: (context, state) {
+        if (state is SearchLoading) {
+          return _buildShimmerLoading();
+        } else if (state is SearchError) {
+          return _buildErrorState(state.message);
+        } else if (state is SearchEmpty) {
+          return _buildEmptyState();
+        } else if (state is SearchSuccess) {
+          return Container(
+            color: const Color(0xFFF8F9FA),
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+              itemCount: state.results.length,
+              itemBuilder: (context, index) {
+                return _buildServiceResult(context, state.results[index]);
+              },
+            ),
+          );
+        }
+        return _buildInitialState(); // الحالة الأولية قبل البحث
+      },
     );
   }
 
-  // --- واجهة عرض النتائج (الذكية) ---
-  Widget _buildSearchResults(BuildContext context) {
-    // 1. فلترة البيانات
-    final normalizedQuery = query.toLowerCase().trim();
-
-    final matchedCategories = categories.where((c) => c.name.toLowerCase().contains(normalizedQuery)).toList();
-    final matchedSubCategories = subCategories.where((s) => s.name.toLowerCase().contains(normalizedQuery)).toList();
-    final matchedProducts = products.where((p) => p.name.toLowerCase().contains(normalizedQuery)).toList();
-
-    if (matchedCategories.isEmpty && matchedSubCategories.isEmpty && matchedProducts.isEmpty) {
-      return _buildEmptyState();
-    }
-
-    return Container(
-      color: const Color(0xFFF8F9FA),
-      child: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-        children: [
-          // 2. عرض الأقسام المطابقة
-          if (matchedCategories.isNotEmpty) ...[
-            _buildSectionTitle("الأقسام"),
-            ...matchedCategories.map((cat) => _buildCategoryResult(context, cat)),
-            const SizedBox(height: 20),
-          ],
-
-          // 3. عرض الفئات الفرعية المطابقة
-          if (matchedSubCategories.isNotEmpty) ...[
-            _buildSectionTitle("الفئات الفرعية"),
-            ...matchedSubCategories.map((sub) => _buildSubCategoryResult(context, sub)),
-            const SizedBox(height: 20),
-          ],
-
-          // 4. عرض الخدمات/المنتجات المطابقة
-          if (matchedProducts.isNotEmpty) ...[
-            _buildSectionTitle("الخدمات المتاحة"),
-            ...matchedProducts.map((prod) => _buildProductResult(context, prod)),
-          ],
-        ],
-      ),
-    );
-  }
-
-  // --- مكونات واجهة المستخدم (Widgets) ---
-
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10, right: 4),
-      child: Text(
-        title,
-        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
-      ),
-    );
-  }
-
-  Widget _buildCategoryResult(BuildContext context, Category cat) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade100),
-      ),
-      child: ListTile(
-        leading: Container(
-          width: 40, height: 40,
-          decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(8)),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: CachedNetworkImage(imageUrl: cat.imageUrl, fit: BoxFit.cover),
-          ),
-        ),
-        title: Text(cat.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
-        onTap: () {
-          // انتقل لصفحة القسم
-          // Navigator.push(context, MaterialPageRoute(builder: (_) => CategoriesScreen()));
-          close(context, null);
-        },
-      ),
-    );
-  }
-
-  Widget _buildSubCategoryResult(BuildContext context, SubCategory sub) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade100),
-      ),
-      child: ListTile(
-        leading: const Icon(Icons.subdirectory_arrow_right_rounded, color: Colors.grey),
-        title: Text(sub.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-        subtitle: Text(sub.category.name, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-        onTap: () {
-          // انتقل لصفحة الساب كاتيغوري
-          // Navigator.push(...);
-          close(context, null);
-        },
-      ),
-    );
-  }
-
-  Widget _buildProductResult(BuildContext context, Product prod) {
+  // --- تصميم النتائج (بطاقة الخدمة) ---
+  Widget _buildServiceResult(BuildContext context, ServiceModel service) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.all(8),
-        leading: ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: CachedNetworkImage(
-            imageUrl: prod.imageUrl,
-            width: 60, height: 60, fit: BoxFit.cover,
-            errorWidget: (_,__,___) => Container(color: Colors.grey[200], child: const Icon(Icons.image)),
+        contentPadding: const EdgeInsets.all(10),
+        leading: Hero(
+          tag: 'service_search_${service.id}', // أنيميشن جميل للصورة
+          child: Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: Colors.grey[100],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: CachedNetworkImage(
+                imageUrl: service.imageUrl ?? "",
+                fit: BoxFit.cover,
+                errorWidget: (_, __, ___) => const Icon(Icons.image, color: Colors.grey),
+              ),
+            ),
           ),
         ),
-        title: Text(prod.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-        subtitle: Row(
-          children: [
-            Icon(Icons.location_on, size: 12, color: AppColors.primary),
-            const SizedBox(width: 4),
-            Text(prod.area ?? "", style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-          ],
+        title: Text(
+          service.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 6.0),
+          child: Row(
+            children: [
+              Icon(Icons.location_on, size: 12, color: AppColors.primary),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  service.area ?? "غير محدد",
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              // يمكنك إضافة السعر هنا إذا وجد
+            ],
+          ),
+        ),
+        trailing: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppColors.primary),
         ),
         onTap: () {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => ServiceDetailScreen(serviceId: prod.id)));
+          // الذهاب للتفاصيل
+          Navigator.push(context, MaterialPageRoute(
+              builder: (_) => ServiceDetailScreen(serviceId: service.id)
+          ));
         },
+      ),
+    );
+  }
+
+  // --- حالات الواجهة المختلفة ---
+
+  Widget _buildShimmerLoading() {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: 5,
+      itemBuilder: (_, __) => Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Shimmer.fromColors(
+          baseColor: Colors.grey.shade300,
+          highlightColor: Colors.grey.shade100,
+          child: Container(
+            height: 80,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -255,16 +205,54 @@ class ProfessionalSearchDelegate extends SearchDelegate {
           Icon(Icons.search_off_rounded, size: 80, color: Colors.grey[300]),
           const SizedBox(height: 16),
           Text(
-            "لم نجد نتائج لـ \"$query\"",
+            "لا توجد نتائج مطابقة",
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black54),
           ),
           const SizedBox(height: 8),
           Text(
-            "حاول البحث بكلمات أخرى أو تصفح الأقسام",
+            "حاول استخدام كلمات بحث أخرى",
             style: TextStyle(fontSize: 14, color: Colors.grey[500]),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildInitialState() {
+    return Container(
+      color: const Color(0xFFF8F9FA),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("اكتب للبحث في جميع الخدمات...", style: TextStyle(color: Colors.grey)),
+          const SizedBox(height: 20),
+          // يمكنك هنا إضافة قائمة "عمليات البحث الأخيرة" مخزنة محلياً
+          const Row(
+            children: [
+              Icon(Icons.bolt, color: Colors.orange, size: 20),
+              SizedBox(width: 8),
+              Text("كلمات شائعة:", style: TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            children: ["تنظيف", "صيانة", "سيارات", "ديكور"].map((text) => ActionChip(
+              label: Text(text),
+              backgroundColor: Colors.white,
+              onPressed: () {
+                query = text; // تعيين النص في شريط البحث
+                searchBloc.add(SearchQueryChanged(text)); // بدء البحث
+              },
+            )).toList(),
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(String msg) {
+    return Center(child: Text(msg, style: const TextStyle(color: Colors.red)));
   }
 }

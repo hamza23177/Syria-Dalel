@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:untitled2/repositories/ad_repository.dart';
+import 'package:untitled2/screens/home/search_bloc.dart';
 import 'package:untitled2/screens/home/search_delegate.dart';
 import 'package:untitled2/screens/home/skeleton.dart';
 import '../../constant.dart';
@@ -10,12 +11,14 @@ import '../../local/ad_cache.dart';
 import '../../local/home_cache.dart';
 import '../../repositories/home_repository.dart';
 import '../../services/ad_service.dart';
+import '../../services/service_api.dart';
 import '../ads/bloc.dart';
 import '../ads/event.dart';
 import '../ads/view.dart';
 import '../category/view.dart';
 import '../contact/view.dart';
 import '../details/view.dart';
+import '../prod/service_repository.dart';
 import '../sub/view.dart';
 import 'bloc.dart';
 import 'event.dart';
@@ -287,17 +290,16 @@ class _HomeScreenState extends State<HomeScreen> {
           // --- تعديل شريط البحث هنا ---
           GestureDetector(
             onTap: () {
-              // هنا نستدعي كلاس البحث الاحترافي ونمرر له البيانات الحالية
-              if (homeData != null) {
-                showSearch(
-                  context: context,
-                  delegate: ProfessionalSearchDelegate(
-                    products: homeData!.products,
-                    categories: homeData!.categories,
-                    subCategories: homeData!.subCategories,
-                  ),
-                );
-              }
+              // ننشئ نسخة جديدة من ServiceRepository أو نستخدم الموجودة
+              // الأفضل إنشاء Repository جديد للبحث أو حقن الموجود
+              final searchRepository = ServiceRepository(ServiceApi());
+
+              showSearch(
+                context: context,
+                delegate: ProfessionalSearchDelegate(
+                  GlobalSearchBloc(searchRepository), // حقن البلوك الجديد هنا
+                ),
+              );
             },
             child: Hero( // Hero Animation لانتقال سلس
               tag: 'searchBar',
