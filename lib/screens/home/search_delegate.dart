@@ -238,7 +238,7 @@ class ProfessionalSearchDelegate extends SearchDelegate {
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
-            children: ["تنظيف", "صيانة", "سيارات", "ديكور"].map((text) => ActionChip(
+            children: ["بلاط", "محل", "معهد", "دكتور"].map((text) => ActionChip(
               label: Text(text),
               backgroundColor: Colors.white,
               onPressed: () {
