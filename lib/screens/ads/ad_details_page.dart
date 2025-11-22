@@ -19,18 +19,14 @@ class _AdDetailsPageState extends State<AdDetailsPage> {
 
   Future<void> _callPhone(String phone) async {
     final Uri uri = Uri(scheme: 'tel', path: phone);
-    if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
-    }
   }
 
   Future<void> _openMap(String address) async {
     final query = Uri.encodeComponent(address);
     // استخدام صيغة URI أكثر مرونة لفتح تطبيق الخرائط (جوجل أو غيره)
     final url = Uri.parse('https://www.google.com/maps/search/?api=1&query=$query');
-    if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
-    }
   }
 
   @override

@@ -26,9 +26,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
   // دالة الاتصال
   Future<void> _callPhone(String phone) async {
     final Uri uri = Uri(scheme: 'tel', path: phone);
-    if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
-    }
   }
 
   // دالة فتح الخريطة
@@ -36,13 +34,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
     // نحاول فتح جوجل مابس مباشرة
     final query = Uri.encodeComponent(address);
     final googleUrl = Uri.parse("https://www.google.com/maps/search/?api=1&query=$query");
-
-    if (await canLaunchUrl(googleUrl)) {
       await launchUrl(googleUrl, mode: LaunchMode.externalApplication);
-    } else {
-      // fallback
-      debugPrint('Could not launch map');
-    }
   }
 
   @override

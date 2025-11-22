@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:untitled2/repositories/ad_repository.dart';
+import 'package:untitled2/screens/home/search_delegate.dart';
 import 'package:untitled2/screens/home/skeleton.dart';
 import '../../constant.dart';
 import '../../local/ad_cache.dart';
@@ -250,7 +251,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       padding: const EdgeInsets.only(top: 50, left: 20, right: 20, bottom: 20),
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: Colors.white, // تم تثبيت اللون الأبيض ليكون أنظف
         borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(30), bottomRight: Radius.circular(30)),
         boxShadow: [
           BoxShadow(color: Colors.grey.withOpacity(0.08), blurRadius: 15, offset: const Offset(0, 10)),
@@ -269,7 +270,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   Text("دليل سوريا", style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: AppColors.primary)),
                 ],
               ),
-              // زر "أضف خدمتك" بتصميم بارز
               ElevatedButton.icon(
                 onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ContactView())),
                 icon: const Icon(Icons.add, size: 18, color: Colors.white),
@@ -284,19 +284,41 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
           const SizedBox(height: 20),
-          // شريط بحث وهمي جمالي
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.search, color: Colors.grey[500]),
-                const SizedBox(width: 10),
-                Text("عن ماذا تبحث اليوم؟", style: TextStyle(color: Colors.grey[500], fontSize: 14)),
-              ],
+          // --- تعديل شريط البحث هنا ---
+          GestureDetector(
+            onTap: () {
+              // هنا نستدعي كلاس البحث الاحترافي ونمرر له البيانات الحالية
+              if (homeData != null) {
+                showSearch(
+                  context: context,
+                  delegate: ProfessionalSearchDelegate(
+                    products: homeData!.products,
+                    categories: homeData!.categories,
+                    subCategories: homeData!.subCategories,
+                  ),
+                );
+              }
+            },
+            child: Hero( // Hero Animation لانتقال سلس
+              tag: 'searchBar',
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF5F7F9), // لون رمادي فاتح جداً وعصري
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.search_rounded, color: AppColors.primary, size: 24),
+                    const SizedBox(width: 12),
+                    Text(
+                      "ابحث عن خدمة، قسم، أو منطقة...",
+                      style: TextStyle(color: Colors.grey[500], fontSize: 14, fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ],
@@ -564,7 +586,7 @@ class ProductCard extends StatelessWidget {
                       width: double.infinity,
                       height: double.infinity,
                       fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => Image.asset('assets/images/placeholder.png', fit: BoxFit.cover),
+                      errorWidget: (_, __, ___) => Image.asset('assets/images/person.png', fit: BoxFit.cover),
                     ),
                   ),
                   // شارة الحالة (مثلاً: جديد أو موثق)

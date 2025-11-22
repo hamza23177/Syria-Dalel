@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
-// Import your models, services, blocs, and constants here
+// Import your models, services, blocs, and constants
 import '../../models/area_model.dart';
 import '../../models/governorate_model.dart';
 import '../../services/area_service.dart';
@@ -14,7 +14,7 @@ import '../area/state.dart';
 import '../governorate/bloc.dart';
 import '../governorate/event.dart';
 import '../governorate/state.dart';
-import '../sub/view.dart';
+import '../sub/view.dart'; // للانتقال للساب كاتيغوري
 import 'bloc.dart';
 import 'event.dart';
 import 'state.dart';
@@ -31,20 +31,19 @@ class CategoriesScreen extends StatefulWidget {
 }
 
 class _CategoriesScreenState extends State<CategoriesScreen> {
-  final ScrollController _scrollController = ScrollController();
+  // لم نعد بحاجة لـ ScrollController هنا لأننا سنستخدم NotificationListener
+  // مثلما فعلت في SubCategoryScreen
 
   String? selectedGovernorate;
   String? selectedArea;
 
+  // قائمة لتخزين البيانات القادمة من البلوك لتطبيق الفلتر عليها محلياً
   List<Category> allCategories = [];
   List<Category> displayedCategories = [];
-  List<Governorate> governorates = [];
-  List<Area> areas = [];
 
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_onScroll);
     _loadSavedLocation();
   }
 
@@ -55,14 +54,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
         selectedGovernorate = saved['governorate'];
         selectedArea = saved['area'];
       });
-    }
-  }
-
-  void _onScroll() {
-    final bloc = context.read<CategoryBloc>();
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200) {
-      bloc.add(FetchCategories());
     }
   }
 
@@ -78,12 +69,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
         }).toList();
       }
     });
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
   }
 
   @override
@@ -103,140 +88,113 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           ),
         ],
         child: Scaffold(
-          backgroundColor: const Color(0xFFF8F9FA), // لون خلفية هادئ وعصري
+          backgroundColor: const Color(0xFFF8F9FA),
           body: SafeArea(
-            child: BlocListener<CategoryBloc, CategoryState>(
-              listener: (context, state) {
-                if (state is CategoryLoaded) {
-                  final newData = state.response.data;
-                  final existingIds = allCategories.map((e) => e.id).toSet();
-                  final filtered = newData.where((c) => !existingIds.contains(c.id)).toList();
-
-                  allCategories.addAll(filtered);
-                  displayedCategories = List.from(allCategories);
-
-                  if (selectedGovernorate != null && selectedArea != null) {
-                    applyFilter();
-                  }
-                  setState(() {});
+            child: BlocBuilder<CategoryBloc, CategoryState>(
+              builder: (context, state) {
+                // 1. حالة التحميل الأولية (الشاشة فارغة تماماً)
+                if (state is CategoryLoading && allCategories.isEmpty) {
+                  return _buildLoadingShimmerGrid();
                 }
-              },
-              child: CustomScrollView(
-                controller: _scrollController,
-                slivers: [
-                  // 1. Header Section
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 30, 20, 10),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.arrow_back_ios, size: 20),
-                                onPressed: () => Navigator.pop(context),
-                                style: IconButton.styleFrom(
-                                    backgroundColor: Colors.white,
-                                    padding: const EdgeInsets.only(right: 6), // تعديل بصري للسهم
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                    elevation: 2,
-                                    shadowColor: Colors.black12
-                                ),
-                              ),
-                              Text(
-                                "استكشف الأقسام",
-                                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            "كل ما تحتاجه من خدمات في مكان واحد",
-                            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
 
-                  // 2. Filters Section
-                  SliverPersistentHeader(
-                    pinned: true,
-                    delegate: _SliverAppBarDelegate(
-                      minHeight: 80.0,
-                      maxHeight: 80.0,
-                      child: Container(
-                        color: const Color(0xFFF8F9FA), // نفس لون الخلفية ليبدو شفافاً
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
-                        child: _buildFiltersRow(),
-                      ),
-                    ),
-                  ),
+                // 2. حالة الخطأ (والشاشة فارغة)
+                if (state is CategoryError && allCategories.isEmpty) {
+                  return _buildErrorView(context, state.message);
+                }
 
-                  // 3. Grid Section
-                  BlocBuilder<CategoryBloc, CategoryState>(
-                    builder: (context, state) {
-                      if (state is CategoryLoading && allCategories.isEmpty) {
-                        return SliverPadding(
-                          padding: const EdgeInsets.all(16),
+                // 3. حالة البيانات موجودة (سواء محملة بالكامل أو تحمل المزيد)
+                if (state is CategoryLoaded) {
+                  // تحديث البيانات المحلية وتطبيق الفلتر
+                  // نستخدم جدولة التحديث بعد انتهاء بناء الواجهة لتجنب أخطاء setState أثناء البناء
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (allCategories != state.response.data) {
+                      setState(() {
+                        allCategories = state.response.data;
+                        applyFilter();
+                      });
+                    }
+                  });
+                }
+
+                // استخدام NotificationListener كما في SubCategoryScreen
+                return NotificationListener<ScrollNotification>(
+                  onNotification: (scrollInfo) {
+                    if (state is CategoryLoaded) {
+                      // شرط الباجينيشن: وصلنا للنهاية + لا يوجد تحميل حالي + يوجد المزيد
+                      if (scrollInfo.metrics.pixels >= scrollInfo.metrics.maxScrollExtent - 200 &&
+                          !state.isLoadingMore) {
+                        // هنا الـ context يعمل بشكل صحيح لأنه داخل الـ MultiBlocProvider
+                        context.read<CategoryBloc>().add(FetchCategories());
+                      }
+                    }
+                    return false;
+                  },
+                  child: CustomScrollView(
+                    slivers: [
+                      // --- 1. الهيدر ---
+                      SliverToBoxAdapter(
+                        child: _buildHeader(context),
+                      ),
+
+                      // --- 2. الفلاتر (مثبتة) ---
+                      SliverPersistentHeader(
+                        pinned: true,
+                        delegate: _SliverAppBarDelegate(
+                          minHeight: 80.0,
+                          maxHeight: 80.0,
+                          child: Container(
+                            color: const Color(0xFFF8F9FA),
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
+                            child: _buildFiltersRow(context),
+                          ),
+                        ),
+                      ),
+
+                      // --- 3. الشبكة (Grid) ---
+                      if (displayedCategories.isEmpty && state is! CategoryLoading)
+                        SliverFillRemaining(
+                          child: Center(
+                            child: Text("لا توجد أقسام مطابقة للبحث", style: TextStyle(color: Colors.grey[600])),
+                          ),
+                        )
+                      else
+                        SliverPadding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                           sliver: SliverGrid(
                             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 2,
-                              childAspectRatio: 0.75,
-                              crossAxisSpacing: 16,
-                              mainAxisSpacing: 16,
+                              childAspectRatio: 0.7,
+                              crossAxisSpacing: 14,
+                              mainAxisSpacing: 14,
                             ),
                             delegate: SliverChildBuilderDelegate(
-                                  (context, index) => _buildSkeletonItem(),
-                              childCount: 6,
+                                  (context, index) {
+                                // عرض البطاقات
+                                if (index < displayedCategories.length) {
+                                  return _buildAnimatedCard(displayedCategories[index], index);
+                                }
+                                // عرض اللودر في الأسفل عند سحب المزيد
+                                else {
+                                  return const Center(
+                                    child: SizedBox(
+                                      width: 30, height: 30,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    ),
+                                  );
+                                }
+                              },
+                              // عدد العناصر + 1 إذا كنا نحمل المزيد
+                              childCount: displayedCategories.length +
+                                  ((state is CategoryLoaded && state.isLoadingMore) ? 1 : 0),
                             ),
                           ),
-                        );
-                      }
-
-                      if (state is CategoryError && allCategories.isEmpty) {
-                        return SliverFillRemaining(
-                          child: _buildErrorView(state.message, () {
-                            context.read<CategoryBloc>().add(FetchCategories());
-                          }),
-                        );
-                      }
-
-                      return SliverPadding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        sliver: SliverGrid(
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            childAspectRatio: 0.7, // نسبة طول أفضل للبطاقة
-                            crossAxisSpacing: 14,
-                            mainAxisSpacing: 14,
-                          ),
-                          delegate: SliverChildBuilderDelegate(
-                                (context, index) {
-                              if (index < displayedCategories.length) {
-                                // Animation logic
-                                return _buildAnimatedCard(displayedCategories[index], index);
-                              } else if (state is CategoryLoaded && state.isLoadingMore) {
-                                return const Center(child: CircularProgressIndicator());
-                              }
-                              return null;
-                            },
-                            childCount: displayedCategories.length +
-                                ((state is CategoryLoaded && state.isLoadingMore) ? 1 : 0),
-                          ),
                         ),
-                      );
-                    },
-                  ),
 
-                  const SliverPadding(padding: EdgeInsets.only(bottom: 30)),
-                ],
-              ),
+                      const SliverPadding(padding: EdgeInsets.only(bottom: 30)),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
         ),
@@ -244,36 +202,70 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     );
   }
 
-  // --- Filter Widgets ---
-  Widget _buildFiltersRow() {
+  // --- مكونات الواجهة (Widgets) ---
+
+  Widget _buildHeader(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 30, 20, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios, size: 20),
+                onPressed: () => Navigator.pop(context),
+                style: IconButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    padding: const EdgeInsets.only(right: 6),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 2,
+                    shadowColor: Colors.black12
+                ),
+              ),
+              Text(
+                "استكشف الأقسام",
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "كل ما تحتاجه من خدمات في مكان واحد",
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFiltersRow(BuildContext context) {
     return Row(
       children: [
         Expanded(
           child: BlocBuilder<GovernorateBloc, GovernorateState>(
             builder: (context, state) {
-              if (state is GovernorateLoaded) {
-                governorates = state.governorates;
-                // Default Selection Logic
-                if (selectedGovernorate == null && governorates.isNotEmpty) {
-                  // لا نقوم بفرض قيمة هنا لترك الحرية للمستخدم، أو يمكن تفعيلها حسب الرغبة
-                  // selectedGovernorate = governorates.first.name;
-                }
-                return _buildCustomDropdown(
-                  hint: "المحافظة",
-                  value: selectedGovernorate,
-                  items: governorates.map((g) => g.name).toList(),
-                  onChanged: (val) async {
-                    setState(() {
-                      selectedGovernorate = val;
-                      selectedArea = null;
-                    });
-                    await PreferencesService.saveLocation(
-                        governorate: selectedGovernorate!, area: selectedArea ?? '');
-                    applyFilter();
-                  },
-                );
-              }
-              return _buildLoadingFilter();
+              List<Governorate> govs = [];
+              if (state is GovernorateLoaded) govs = state.governorates;
+
+              return _buildCustomDropdown(
+                hint: "المحافظة",
+                value: selectedGovernorate,
+                items: govs.map((g) => g.name).toList(),
+                onChanged: (val) async {
+                  setState(() {
+                    selectedGovernorate = val;
+                    selectedArea = null;
+                  });
+                  await PreferencesService.saveLocation(
+                      governorate: selectedGovernorate!, area: selectedArea ?? '');
+                  applyFilter();
+                },
+              );
             },
           ),
         ),
@@ -281,25 +273,24 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
         Expanded(
           child: BlocBuilder<AreaBloc, AreaState>(
             builder: (context, state) {
+              List<Area> areas = [];
               if (state is AreaLoaded) {
                 areas = state.areas.cast<Area>();
-                final filteredAreas = selectedGovernorate == null
-                    ? areas
-                    : areas.where((a) => a.governorate.name == selectedGovernorate).toList();
-
-                return _buildCustomDropdown(
-                  hint: "المنطقة",
-                  value: selectedArea,
-                  items: filteredAreas.map((a) => a.name).toList(),
-                  onChanged: (val) async {
-                    setState(() => selectedArea = val);
-                    await PreferencesService.saveLocation(
-                        governorate: selectedGovernorate ?? '', area: selectedArea!);
-                    applyFilter();
-                  },
-                );
+                if (selectedGovernorate != null) {
+                  areas = areas.where((a) => a.governorate.name == selectedGovernorate).toList();
+                }
               }
-              return _buildLoadingFilter();
+              return _buildCustomDropdown(
+                hint: "المنطقة",
+                value: selectedArea,
+                items: areas.map((a) => a.name).toList(),
+                onChanged: (val) async {
+                  setState(() => selectedArea = val);
+                  await PreferencesService.saveLocation(
+                      governorate: selectedGovernorate ?? '', area: selectedArea!);
+                  applyFilter();
+                },
+              );
             },
           ),
         ),
@@ -338,61 +329,57 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     );
   }
 
-  Widget _buildLoadingFilter() {
-    return Shimmer.fromColors(
-      baseColor: Colors.grey.shade300,
-      highlightColor: Colors.grey.shade100,
-      child: Container(
-        height: 50,
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
-      ),
-    );
-  }
-
-  // --- Card & Item Widgets ---
   Widget _buildAnimatedCard(Category category, int index) {
-    // أنيميشن بسيط للظهور
     return TweenAnimationBuilder<double>(
-      duration: Duration(milliseconds: 400 + (index % 4) * 100), // تأخير بسيط لكل عنصر
+      duration: Duration(milliseconds: 400 + (index % 4) * 100),
       tween: Tween(begin: 0.0, end: 1.0),
       curve: Curves.easeOutQuad,
       builder: (context, value, child) {
         return Transform.translate(
-          offset: Offset(0, 50 * (1 - value)), // حركة من الأسفل للأعلى
-          child: Opacity(
-            opacity: value,
-            child: child,
-          ),
+          offset: Offset(0, 50 * (1 - value)),
+          child: Opacity(opacity: value, child: child),
         );
       },
       child: _CategoryCard(category: category),
     );
   }
 
-  Widget _buildSkeletonItem() {
-    return Shimmer.fromColors(
-      baseColor: Colors.grey.shade300,
-      highlightColor: Colors.grey.shade100,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+  Widget _buildLoadingShimmerGrid() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: GridView.builder(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 0.75,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+        ),
+        itemCount: 6,
+        itemBuilder: (_, __) => Shimmer.fromColors(
+          baseColor: Colors.grey.shade300,
+          highlightColor: Colors.grey.shade100,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildErrorView(String message, VoidCallback onRetry) {
+  Widget _buildErrorView(BuildContext context, String message) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.error_outline, size: 60, color: Colors.red[300]),
           const SizedBox(height: 16),
-          Text(message, style: TextStyle(color: Colors.grey[600])),
+          Text("حدث خطأ في الاتصال", style: TextStyle(color: Colors.grey[600])),
           const SizedBox(height: 16),
           ElevatedButton(
-            onPressed: onRetry,
+            onPressed: () => context.read<CategoryBloc>().add(FetchCategories()),
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
             child: const Text("إعادة المحاولة", style: TextStyle(color: Colors.white)),
           ),
@@ -402,7 +389,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   }
 }
 
-// --- كلاس البطاقة المخصص ---
+// --- كلاس البطاقة المخصص (نفس التصميم السابق) ---
 class _CategoryCard extends StatelessWidget {
   final Category category;
 
@@ -415,6 +402,7 @@ class _CategoryCard extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
+            // نمرر الاسم والـ ID للساب كاتيغوري كما طلبت
             builder: (_) => SubCategoryScreen(categoryId: category.id, categoryName: category.name),
           ),
         );
@@ -430,46 +418,21 @@ class _CategoryCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 1. الصورة
             Expanded(
               flex: 3,
-              child: Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                    child: CachedNetworkImage(
-                      imageUrl: category.imageUrl?.replaceFirst("http://", "https://") ?? "",
-                      width: double.infinity,
-                      height: double.infinity,
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(color: Colors.grey[100]),
-                      errorWidget: (_, __, ___) => Container(
-                        color: Colors.grey[200],
-                        child: const Icon(Icons.image, color: Colors.grey),
-                      ),
-                    ),
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                child: CachedNetworkImage(
+                  imageUrl: category.imageUrl?.replaceFirst("http://", "https://") ?? "",
+                  fit: BoxFit.cover,
+                  placeholder: (_, __) => Container(color: Colors.grey[100]),
+                  errorWidget: (_, __, ___) => Container(
+                    color: Colors.grey[200],
+                    child: const Icon(Icons.image, color: Colors.grey),
                   ),
-                  // تدرج لوني خفيف فوق الصورة
-                  Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                        gradient: LinearGradient(
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                          colors: [
-                            Colors.black.withOpacity(0.1),
-                            Colors.transparent,
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-
-            // 2. المحتوى النصي
             Expanded(
               flex: 2,
               child: Padding(
@@ -485,11 +448,7 @@ class _CategoryCard extends StatelessWidget {
                           category.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            height: 1.2,
-                          ),
+                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 4),
                         Row(
@@ -508,15 +467,10 @@ class _CategoryCard extends StatelessWidget {
                         ),
                       ],
                     ),
-
-                    // زر وهمي صغير يدعو للنقر
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          "تصفح",
-                          style: TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.w700),
-                        ),
+                        Text("تصفح", style: TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.w700)),
                         Icon(Icons.arrow_forward_rounded, size: 16, color: AppColors.primary),
                       ],
                     )
@@ -531,7 +485,7 @@ class _CategoryCard extends StatelessWidget {
   }
 }
 
-// --- كلاس مساعد لل Sliver Header ---
+// --- Sliver Header Delegate ---
 class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
   final double minHeight;
   final double maxHeight;
@@ -547,16 +501,8 @@ class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
   double get minExtent => minHeight;
   @override
   double get maxExtent => maxHeight;
-
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return SizedBox.expand(child: child);
-  }
-
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) => SizedBox.expand(child: child);
   @override
-  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
-    return maxHeight != oldDelegate.maxHeight ||
-        minHeight != oldDelegate.minHeight ||
-        child != oldDelegate.child;
-  }
+  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) => maxHeight != oldDelegate.maxHeight || minHeight != oldDelegate.minHeight || child != oldDelegate.child;
 }
