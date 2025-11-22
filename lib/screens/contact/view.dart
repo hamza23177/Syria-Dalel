@@ -45,6 +45,16 @@ class _ContactViewState extends State<ContactView> with SingleTickerProviderStat
     super.dispose();
   }
 
+  Future<void> _launchMap(String address) async {
+    if (address.isEmpty) return;
+    // نقوم بتشفير النص العربي ليفهمه المتصفح (تحويل المسافات والأحرف العربية لرموز)
+    final query = Uri.encodeComponent(address);
+    // نستخدم رابط بحث جوجل مابس العالمي (يعمل على ايفون واندرويد)
+    final googleMapsUrl = "https://www.google.com/maps/search/?api=1&query=$query";
+
+    await _launchUrl(googleMapsUrl);
+  }
+
   Future<void> _launchUrl(String url) async {
     if (url.isEmpty) return;
     final uri = Uri.parse(url);
@@ -142,12 +152,12 @@ class _ContactViewState extends State<ContactView> with SingleTickerProviderStat
                                         onTap: () => _launchUrl("https://wa.me/${c.whatsapp!.replaceAll('+', '')}"),
                                       )),
                                     const SizedBox(width: 12),
-                                    if (c.googleMapLink != null)
+                                    if (c.address != null)
                                       Expanded(child: _buildGlassCard(
                                         icon: FontAwesomeIcons.mapLocationDot,
                                         label: "الموقع",
                                         color: const Color(0xFFFF9500),
-                                        onTap: () => _launchUrl(c.googleMapLink!),
+                                        onTap: () => _launchMap(c.address!), // ✅ هذا سيفتح الخريطة ويبحث عن العنوان
                                       )),
                                   ],
                                 ),

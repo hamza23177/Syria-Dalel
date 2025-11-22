@@ -315,7 +315,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     Icon(Icons.search_rounded, color: AppColors.primary, size: 24),
                     const SizedBox(width: 12),
                     Text(
-                      "ابحث عن خدمة، قسم، أو منطقة...",
+                      "ابحث عن خدمة.",
                       style: TextStyle(color: Colors.grey[500], fontSize: 14, fontWeight: FontWeight.w500),
                     ),
                   ],
