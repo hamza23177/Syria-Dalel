@@ -30,16 +30,21 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     emit(HomeLoading());
 
     try {
-      // ⚡ عرض الكاش فورا إن وجد
+      // ⚡ عرض الكاش فورا إن وجد (للسرعة)
       final cached = await repository.cache.getCachedHomeData();
       if (cached != null) {
         cachedData = cached;
-        emit(HomeLoaded(cached, isLoadingMore: false, reachedEnd: false));
+        // 🎲 نقوم بخلط الكاش أيضاً ليعطي شعوراً بالتجدد حتى قبل جلب البيانات الجديدة
+        _randomizeData(cachedData!);
+        emit(HomeLoaded(cachedData!, isLoadingMore: false, reachedEnd: false));
       }
 
-      // تحميل الصفحة الأولى
+      // تحميل الصفحة الأولى من السيرفر
       currentPage = 1;
       final data = await repository.getHomeData(page: 1, perPage: event.perPage);
+
+      // 🎲🎲 هنا السحر: خلط البيانات القادمة من السيرفر فوراً
+      _randomizeData(data);
 
       cachedData = data;
 
@@ -64,7 +69,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
 
     isLoading = true;
 
-    // ⭐ Debounce آمن داخل async
+    // ⭐ Debounce آمن
     await Future.delayed(const Duration(milliseconds: 200));
 
     emit(HomeLoaded(cachedData!, isLoadingMore: true));
@@ -77,9 +82,18 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
         perPage: event.perPage,
       );
 
+      // 🎲 نخلط البيانات الجديدة فقط قبل إضافتها للقائمة القديمة
+      // (هذا يحافظ على ترتيب العناصر التي رآها المستخدم في الأعلى، ويضيف التنوع في الأسفل)
+      _randomizeData(newData);
+
+      // دمج البيانات
+      // ملاحظة: لا نخلط القائمة الكاملة هنا لكي لا "تقفز" العناصر التي يشاهدها المستخدم حالياً
       cachedData!.products.addAll(newData.products);
-      cachedData!.categories.addAll(newData.categories);
-      cachedData!.subCategories.addAll(newData.subCategories);
+
+      // بالنسبة للفئات والأقسام الفرعية، عادة لا يوجد باجينيشن لها في الـ Home
+      // ولكن لو وجد، نضيفها كما هي
+       cachedData!.categories.addAll(newData.categories);
+       cachedData!.subCategories.addAll(newData.subCategories);
 
       if (newData.products.length < event.perPage) {
         hasMore = false;
@@ -93,6 +107,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
         ),
       );
     } catch (_) {
+      // في حال الخطأ نعيد الحالة السابقة
       emit(
         HomeLoaded(
           cachedData!,
@@ -105,8 +120,18 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     isLoading = false;
   }
 
+  /// 🛠️ دالة مساعدة لخلط البيانات (Shuffle)
+  /// تجعل العرض يبدو "خارقاً" وتنافسياً
+  void _randomizeData(HomeData data) {
+    // خلط المنتجات/الخدمات
+    data.products.shuffle();
 
+    // خلط الأقسام الرئيسية (اختياري: إذا أردت تغيير ترتيب الدوائر في الأعلى)
+    data.categories.shuffle();
 
+    // خلط الأقسام الفرعية
+    data.subCategories.shuffle();
+  }
 
   String _handleDioError(DioError e) {
     if (e.type == DioErrorType.connectionTimeout ||

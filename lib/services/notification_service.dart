@@ -123,7 +123,7 @@ class NotificationService {
       "unique_daily_marketing_task",
       "marketingTask",
       frequency: const Duration(hours: 24),
-      // initialDelay: const Duration(hours: 12), // اختياري: لتبدأ في وقت محدد تقريباً
+      initialDelay: const Duration(hours: 12), // اختياري: لتبدأ في وقت محدد تقريباً
       constraints: Constraints(
         networkType: NetworkType.not_required, // يعمل حتى بدون نت (الإشعار محلي)
         requiresBatteryNotLow: false,
