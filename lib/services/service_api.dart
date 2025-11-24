@@ -18,6 +18,8 @@ class ServiceApi {
         "page": page,
         "name": name ?? "",
         "sub_category_id": subCategoryId,
+        "sort_by": "created_at",
+        "order": "desc",
       },
     );
 

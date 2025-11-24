@@ -9,7 +9,7 @@ import '../details/view.dart';
 import 'bloc.dart';
 import 'event.dart';
 import 'state.dart';
-import '../../constant.dart'; // تأكد أن لديك AppColors
+import '../../constant.dart';
 
 class ServiceScreen extends StatefulWidget {
   final int subCategoryId;
@@ -31,7 +31,6 @@ class _ServiceScreenState extends State<ServiceScreen> {
   @override
   void initState() {
     super.initState();
-    // ✅ استدعاء واحد فقط للبيانات عند البدء
     context.read<ServiceBloc>().add(FetchServices(subCategoryId: widget.subCategoryId));
   }
 
@@ -41,15 +40,26 @@ class _ServiceScreenState extends State<ServiceScreen> {
     super.dispose();
   }
 
+  // 🔥 دالة التحديث الاحترافية
+  Future<void> _onRefresh() async {
+    final bloc = context.read<ServiceBloc>();
+
+    // إعادة طلب البيانات (الصفحة 1)
+    bloc.add(FetchServices(subCategoryId: widget.subCategoryId));
+
+    // تأخير بسيط لإعطاء شعور بالسلاسة (UX)
+    await Future.delayed(const Duration(milliseconds: 1500));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8F9FA), // نفس خلفية الصفحات السابقة
+        backgroundColor: const Color(0xFFF8F9FA),
         body: BlocBuilder<ServiceBloc, ServiceState>(
           builder: (context, state) {
-            // 1. حالة التحميل الأولية
+            // 1. حالة التحميل الأولية (الشاشة كاملة)
             if (state is ServiceLoading && (state is! ServiceLoaded)) {
               return _buildLoadingShimmer();
             }
@@ -65,101 +75,129 @@ class _ServiceScreenState extends State<ServiceScreen> {
                 return _buildEmptyView(context);
               }
 
-              return NotificationListener<ScrollNotification>(
-                onNotification: (scrollInfo) {
-                  // ✅ منطق الباجينيشن المحسن والمتوافق مع Slivers
-                  if (scrollInfo.metrics.pixels >=
-                      scrollInfo.metrics.maxScrollExtent - 200 &&
-                      !state.isLoadingMore) {
-                    context.read<ServiceBloc>().add(
-                      FetchServices(
-                          subCategoryId: widget.subCategoryId,
-                          loadMore: true
-                      ),
-                    );
-                  }
-                  return false;
-                },
-                child: CustomScrollView(
-                  controller: _scrollController,
-                  slivers: [
-                    // --- Header احترافي ---
-                    SliverAppBar(
-                      expandedHeight: 100.0,
-                      floating: true,
-                      pinned: true,
-                      backgroundColor: const Color(0xFFF8F9FA),
-                      elevation: 0,
-                      centerTitle: false,
-                      leading: IconButton(
-                        icon: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8),
-                            ],
-                          ),
-                          child: const Icon(Icons.arrow_back, color: Colors.black87, size: 20),
-                        ),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                      flexibleSpace: FlexibleSpaceBar(
-                        titlePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                        title: Text(
-                          widget.subCategoryName,
-                          style: TextStyle(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 18,
-                          ),
-                        ),
-                      ),
-                    ),
+              return RefreshIndicator(
+                // 🎨 تخصيص الـ Refresh لينافس التطبيقات العالمية
+                color: AppColors.primary,
+                backgroundColor: Colors.white,
+                strokeWidth: 3.0,
+                displacement: 40,
+                onRefresh: _onRefresh,
 
-                    // --- إحصائية بسيطة (اختياري) ---
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
-                        child: Text(
-                          "${state.services.length} خدمة متاحة",
-                          style: TextStyle(color: Colors.grey[600], fontSize: 12, fontWeight: FontWeight.bold),
+                child: NotificationListener<ScrollNotification>(
+                  onNotification: (scrollInfo) {
+                    if (scrollInfo.metrics.pixels >=
+                        scrollInfo.metrics.maxScrollExtent - 200 &&
+                        !state.isLoadingMore) {
+                      context.read<ServiceBloc>().add(
+                        FetchServices(
+                            subCategoryId: widget.subCategoryId,
+                            loadMore: true
+                        ),
+                      );
+                    }
+                    return false;
+                  },
+                  child: CustomScrollView(
+                    controller: _scrollController,
+                    // 🔥 فيزياء السكرول مهمة جداً لعمل الـ Refresh بسلاسة
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
+                    ),
+                    slivers: [
+                      // --- Header احترافي ---
+                      SliverAppBar(
+                        expandedHeight: 100.0,
+                        floating: true,
+                        pinned: true,
+                        backgroundColor: const Color(0xFFF8F9FA),
+                        elevation: 0,
+                        centerTitle: false,
+                        leading: IconButton(
+                          icon: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8),
+                              ],
+                            ),
+                            child: const Icon(Icons.arrow_back, color: Colors.black87, size: 20),
+                          ),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                        flexibleSpace: FlexibleSpaceBar(
+                          titlePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                          title: Text(
+                            widget.subCategoryName,
+                            style: TextStyle(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 18,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
 
-                    // --- قائمة الخدمات ---
-                    SliverPadding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                              (context, index) {
-                            if (index < state.services.length) {
+                      // --- إحصائية بسيطة ---
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+                          child: Text(
+                            "${state.services.length} خدمة متاحة",
+                            style: TextStyle(color: Colors.grey[600], fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+
+                      // --- قائمة الخدمات ---
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        sliver: SliverList(
+                          delegate: SliverChildBuilderDelegate(
+                                (context, index) {
+                              // 🛠️ إصلاح الخطأ الهندسي هنا:
+                              // يجب التحقق أولاً إذا كان الـ index هو مؤشر التحميل قبل محاولة الوصول للبيانات
+
+                              if (index >= state.services.length) {
+                                // هذا هو مكان اللودر السفلي
+                                return const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 20),
+                                  child: Center(
+                                    child: SizedBox(
+                                      width: 25, height: 25,
+                                      child: CircularProgressIndicator(strokeWidth: 2.5),
+                                    ),
+                                  ),
+                                );
+                              }
+
+                              // الآن الـ Index آمن، يمكننا جلب البيانات
+                              final service = state.services[index];
+
+                              // البطاقة المميزة (الأولى)
+                              if (index == 0) {
+                                return _buildAnimatedItem(
+                                    index,
+                                    _buildPremiumServiceCard(service, isNew: true)
+                                );
+                              }
+
+                              // البطاقات العادية
                               return _buildAnimatedItem(
                                 index,
-                                _ServiceCard(service: state.services[index]),
+                                _ServiceCard(service: service),
                               );
-                            } else {
-                              // مؤشر التحميل السفلي
-                              return const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 20),
-                                child: Center(
-                                  child: SizedBox(
-                                    width: 25, height: 25,
-                                    child: CircularProgressIndicator(strokeWidth: 2.5),
-                                  ),
-                                ),
-                              );
-                            }
-                          },
-                          childCount: state.services.length + (state.isLoadingMore ? 1 : 0),
+                            },
+                            // عدد العناصر + 1 (للـ loader) فقط إذا كان هناك تحميل
+                            childCount: state.services.length + (state.isLoadingMore ? 1 : 0),
+                          ),
                         ),
                       ),
-                    ),
 
-                    const SliverPadding(padding: EdgeInsets.only(bottom: 30)),
-                  ],
+                      const SliverPadding(padding: EdgeInsets.only(bottom: 30)),
+                    ],
+                  ),
                 ),
               );
             }
@@ -205,14 +243,59 @@ class _ServiceScreenState extends State<ServiceScreen> {
     );
   }
 
+  Widget _buildPremiumServiceCard(ServiceModel service, {bool isNew = false}) {
+    return Stack(
+      children: [
+        Container(
+          margin: const EdgeInsets.only(bottom: 16), // إضافة مسافة سفلية ليتناسق مع القائمة
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.amber, width: 2),
+            boxShadow: [
+              BoxShadow(color: Colors.amber.withOpacity(0.2), blurRadius: 15, offset: const Offset(0, 5))
+            ],
+          ),
+          child: _ServiceCard(service: service), // إزالة margin من الكارد الداخلي إن وجد عبر التعديل أدناه
+        ),
+        if (isNew)
+          Positioned(
+            top: 20,
+            left: 0,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: const BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.only(topRight: Radius.circular(8), bottomRight: Radius.circular(8)),
+              ),
+              child: const Text(
+                "وصل حديثاً 🔥",
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
   Widget _buildEmptyView(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+    // تغليفها بـ RefreshIndicator لتمكين التحديث حتى لو كانت فارغة
+    return RefreshIndicator(
+      onRefresh: _onRefresh,
+      color: AppColors.primary,
+      child: Stack(
         children: [
-          Icon(Icons.search_off_rounded, size: 80, color: Colors.grey[300]),
-          const SizedBox(height: 16),
-          Text("عذراً، لا توجد خدمات متاحة حالياً", style: TextStyle(color: Colors.grey[600])),
+          ListView(), // لتمكين السحب
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.search_off_rounded, size: 80, color: Colors.grey[300]),
+                const SizedBox(height: 16),
+                Text("عذراً، لا توجد خدمات متاحة حالياً", style: TextStyle(color: Colors.grey[600])),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -237,15 +320,18 @@ class _ServiceScreenState extends State<ServiceScreen> {
   }
 }
 
-// --- تصميم بطاقة الخدمة (Service Card) المحسن ---
+// --- تصميم بطاقة الخدمة ---
 class _ServiceCard extends StatelessWidget {
-  final ServiceModel service; // تأكد من نوع الموديل
+  final ServiceModel service;
 
   const _ServiceCard({required this.service});
 
   @override
   Widget build(BuildContext context) {
     return Container(
+      // قمنا بإزالة الـ margin هنا لأننا نتحكم به في القائمة الرئيسية
+      // ولكن إذا استخدمته منفرداً قد تحتاج لإعادته.
+      // لغرض التصميم الحالي (داخل القائمة)، الأفضل أن يكون التحكم بالمسافات في الـ Builder
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -276,7 +362,6 @@ class _ServiceCard extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. صورة الخدمة
                 Stack(
                   children: [
                     Container(
@@ -297,7 +382,6 @@ class _ServiceCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    // أيقونة التحقق (اختياري)
                     Positioned(
                       bottom: 0,
                       right: 0,
@@ -312,15 +396,11 @@ class _ServiceCard extends StatelessWidget {
                     )
                   ],
                 ),
-
                 const SizedBox(width: 14),
-
-                // 2. التفاصيل
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // الاسم
                       Text(
                         service.name,
                         maxLines: 1,
@@ -332,8 +412,6 @@ class _ServiceCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 6),
-
-                      // العنوان
                       Row(
                         children: [
                           Icon(Icons.location_on_outlined, size: 14, color: Colors.grey[500]),
@@ -348,14 +426,10 @@ class _ServiceCard extends StatelessWidget {
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 10),
-
-                      // رقم الهاتف وزر التفاعل
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          // رقم الهاتف بتصميم جذاب
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
@@ -377,8 +451,6 @@ class _ServiceCard extends StatelessWidget {
                               ],
                             ),
                           ),
-
-                          // زر سهم صغير
                           const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
                         ],
                       )

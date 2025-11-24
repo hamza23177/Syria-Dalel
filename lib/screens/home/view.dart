@@ -96,27 +96,66 @@ class _HomeScreenState extends State<HomeScreen> {
           HomeRepository(service: HomeService(), cache: HomeCache()),
         )..add(LoadHomeData()),
         child: Scaffold(
-          backgroundColor: Colors.grey[50], // خلفية فاتحة جداً لإبراز المحتوى
+          backgroundColor: Colors.grey[50],
           body: BlocBuilder<HomeBloc, HomeState>(
             builder: (context, state) {
-              if (state is HomeLoading) {
+              // 1. حالة التحميل الأولية (فقط عند فتح التطبيق لأول مرة)
+              if (state is HomeLoading && homeData == null) {
                 return const HomeSkeleton();
-              } else if (state is HomeLoaded) {
+              }
+
+              // 2. تحديث البيانات عند نجاح التحميل
+              if (state is HomeLoaded) {
                 homeData = state.data;
+                // نستخدم addPostFrameCallback لتجنب أخطاء إعادة البناء أثناء الرسم
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (mounted) applyFilter(homeData!);
                 });
+              }
 
-                final areasForSelectedGovernorate = selectedGovernorate == null
-                    ? homeData!.areas
-                    : homeData!.areas
-                    .where((a) => a.governorate.name == selectedGovernorate)
-                    .toList();
+              // إذا لم تكن هناك بيانات حتى الآن (حالة نادرة أو خطأ مبكر)
+              if (homeData == null && state is HomeError) {
+                return _buildErrorState(context, state.message);
+              }
 
-                return CustomScrollView(
+              // تجهيز بيانات الفلترة
+              final areasForSelectedGovernorate = (homeData != null && selectedGovernorate != null)
+                  ? homeData!.areas
+                  .where((a) => a.governorate.name == selectedGovernorate)
+                  .toList()
+                  : (homeData?.areas ?? []);
+
+              // --- 🔥 بداية التعديل الاحترافي للـ Refresh ---
+              return RefreshIndicator(
+                // تخصيص الألوان لتنافس التطبيقات العالمية
+                color: AppColors.primary,
+                backgroundColor: Colors.white,
+                strokeWidth: 3.0, // سماكة المؤشر
+                displacement: 40, // مسافة النزول
+
+                // الدالة التي يتم استدعاؤها عند السحب
+                onRefresh: () async {
+                  final bloc = context.read<HomeBloc>();
+
+                  // 1. طلب البيانات من جديد (الصفحة 1)
+                  bloc.add(LoadHomeData());
+
+                  // 2. خدعة بصرية (UX Trick):
+                  // ننتظر قليلاً حتى لو كان النت سريعاً جداً، لكي يرى المستخدم المؤشر يدور
+                  // هذا يعطي شعوراً بأن "شيئاً ما يحدث" فعلاً
+                  await Future.delayed(const Duration(milliseconds: 1500));
+
+                  return;
+                },
+
+                child: CustomScrollView(
                   controller: _scrollController,
+                  // 🔥 مهم جداً: يضمن إمكانية السحب حتى لو المحتوى قليل
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(), // تأثير الارتداد مثل الآيفون
+                  ),
                   slivers: [
-                    // --- 1. Header مخصص بدلاً من AppBar ---
+                    // --- 1. Header ---
                     SliverToBoxAdapter(
                       child: _buildCustomHeader(context),
                     ),
@@ -134,7 +173,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(20),
                                   boxShadow: [
-                                    BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 15, offset: Offset(0, 5))
+                                    BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 15, offset: const Offset(0, 5))
                                   ]
                               ),
                               child: BlocProvider(
@@ -146,12 +185,13 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ),
 
-                            // الفلترة بتصميم عصري
-                            _buildModernFilters(context, areasForSelectedGovernorate),
+                            // الفلترة
+                            if (homeData != null) // تأكد من وجود البيانات قبل الرسم
+                              _buildModernFilters(context, areasForSelectedGovernorate),
 
                             const SizedBox(height: 24),
 
-                            // --- بنر دعوة للاشتراك ---
+                            // بنر الاشتراك
                             _buildPremiumBanner(context),
 
                             const SizedBox(height: 24),
@@ -170,7 +210,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           CategoryHorizontalList(
                             categories: filteredCategories,
-                            onEndReached: () => context.read<HomeBloc>().add(LoadMoreHomeData(page: context.read<HomeBloc>().currentPage + 1)),
+                            onEndReached: () {
+                              if(context.read<HomeBloc>().hasMore) {
+                                context.read<HomeBloc>().add(LoadMoreHomeData(page: context.read<HomeBloc>().currentPage + 1));
+                              }
+                            },
                           ),
                           const SizedBox(height: 24),
                         ],
@@ -188,7 +232,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           SubCategoryList(
                             subCategories: filteredSubCategories,
-                            onEndReached: () => context.read<HomeBloc>().add(LoadMoreHomeData(page: context.read<HomeBloc>().currentPage + 1)),
+                            onEndReached: () {
+                              if(context.read<HomeBloc>().hasMore) {
+                                context.read<HomeBloc>().add(LoadMoreHomeData(page: context.read<HomeBloc>().currentPage + 1));
+                              }
+                            },
                           ),
                           const SizedBox(height: 24),
                         ],
@@ -206,41 +254,49 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
 
-                    SliverPadding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      sliver: SliverGrid(
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          mainAxisSpacing: 16,
-                          crossAxisSpacing: 16,
-                          childAspectRatio: 0.72, // تحسين نسبة الطول للعرض
+                    if (filteredProducts.isEmpty && state is! HomeLoading)
+                      SliverToBoxAdapter(
+                        child: Container(
+                          height: 200,
+                          alignment: Alignment.center,
+                          child: Text("لا توجد خدمات مطابقة للفلتر", style: TextStyle(color: Colors.grey[500])),
                         ),
-                        delegate: SliverChildBuilderDelegate(
-                              (context, index) {
-                            return ProductCard(product: filteredProducts[index]);
-                          },
-                          childCount: filteredProducts.length,
+                      )
+                    else
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        sliver: SliverGrid(
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            mainAxisSpacing: 16,
+                            crossAxisSpacing: 16,
+                            childAspectRatio: 0.72,
+                          ),
+                          delegate: SliverChildBuilderDelegate(
+                                (context, index) {
+                              return ProductCard(product: filteredProducts[index]);
+                            },
+                            childCount: filteredProducts.length,
+                          ),
                         ),
                       ),
-                    ),
 
                     // --- 6. مؤشرات التحميل ---
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.all(20.0),
-                        child: state.isLoadingMore
+                        child: (state is HomeLoaded && state.isLoadingMore)
                             ? const Center(child: CircularProgressIndicator())
-                            : state.reachedEnd
+                            : (state is HomeLoaded && state.reachedEnd && filteredProducts.isNotEmpty)
                             ? Center(child: Text("وصلت لنهاية القائمة 🎉", style: TextStyle(color: Colors.grey)))
                             : const SizedBox(),
                       ),
                     ),
+
+                    const SliverPadding(padding: EdgeInsets.only(bottom: 80)), // مساحة إضافية في الأسفل
                   ],
-                );
-              } else if (state is HomeError) {
-                return _buildErrorState(context, state.message);
-              }
-              return const SizedBox();
+                ),
+              );
             },
           ),
         ),
