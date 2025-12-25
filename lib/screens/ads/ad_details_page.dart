@@ -39,14 +39,8 @@ class _AdDetailsPageState extends State<AdDetailsPage> {
     }
 
     final Uri uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
       // فتح في التطبيق الخارجي (مثل تطبيق فيسبوك)
       await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('لا يمكن فتح هذا الرابط')),
-      );
-    }
   }
 
   @override
@@ -160,7 +154,7 @@ class _AdDetailsPageState extends State<AdDetailsPage> {
                               fontSize: 15,
                               height: 1.6,
                               color: Colors.grey[700],
-                              fontFamily: 'YourFontFamily', // وحد الخط هنا
+                              fontFamily: 'Cairo', // وحد الخط هنا
                             ),
                             linkStyle: TextStyle(
                               color: AppColors.primary,

@@ -48,14 +48,8 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
     }
 
     final Uri uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
       // mode: LaunchMode.externalApplication >> هذا الخيار يجبر الرابط على الفتح في التطبيق الخارجي (تطبيق فيسبوك مثلاً) وليس متصفح داخلي
       await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('لا يمكن فتح هذا الرابط')),
-      );
-    }
   }
 
   @override

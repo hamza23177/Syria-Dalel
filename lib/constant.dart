@@ -1,23 +1,21 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // اللون الأساسي (Brand Color)
+  // اللون الأساسي (Brand Color) - للواجهة العلوية مثل واتساب
   static const Color primary = Color(0xffF57752);
 
-  // الخلفية العامة (قريبة من الأبيض)
+  // الخلفية العامة
   static const Color background = Color(0xffF5F5F5);
 
-  // الأبيض النقي
+  // الأبيض النقي - للبطاقات
   static const Color white = Color(0xffFFFFFF);
 
-  // النصوص الأساسية
+  // النصوص
   static const Color textDark = Color(0xff444444);
-
-  // النصوص الثانوية
   static const Color textLight = Color(0xff777777);
 
-  // لمسات إضافية (مثلاً للأزرار الناشطة أو الأيقونات المميزة)
-  static const Color accent = Color(0xff4CAF50); // أخضر هادئ
+  // لون الزر الجاذب (أضف خدمتك)
+  static const Color accent = Color(0xff4CAF50);
 }
 
 class AppFonts {

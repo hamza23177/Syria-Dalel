@@ -1,6 +1,8 @@
 // screens/category/view.dart
 
+import 'dart:ui'; // For BackdropFilter
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -13,32 +15,32 @@ import '../../services/area_service.dart';
 import '../../services/governorate_service.dart';
 import '../../services/category_service.dart';
 import '../../services/preferences_service.dart';
-import '../../services/ad_service.dart'; // تأكد من الاستيراد
-import '../../services/service_api.dart'; // للبحث
-import '../../repositories/ad_repository.dart'; // للإعلانات
-import '../../local/ad_cache.dart'; // للكاش
+import '../../services/ad_service.dart';
+import '../../services/service_api.dart';
+import '../../repositories/ad_repository.dart';
+import '../../local/ad_cache.dart';
 import '../../constant.dart';
 
 // Blocs
 import '../area/bloc.dart';
 import '../area/event.dart';
 import '../area/state.dart';
+import '../contact/view.dart';
 import '../governorate/bloc.dart';
 import '../governorate/event.dart';
 import '../governorate/state.dart';
 import 'bloc.dart';
 import 'event.dart';
 import 'state.dart';
-import '../ads/bloc.dart'; // بلوك الإعلانات
+import '../ads/bloc.dart';
 import '../ads/event.dart';
-import '../ads/view.dart'; // ويدجت الإعلانات (AdCarouselView)
+import '../ads/view.dart';
 
 // Screens
 import '../sub/view.dart';
-import '../home/search_delegate.dart'; // البحث
+import '../home/search_delegate.dart';
 import '../home/search_bloc.dart';
 import '../prod/service_repository.dart';
-
 
 class CategoriesScreen extends StatefulWidget {
   const CategoriesScreen({super.key});
@@ -48,15 +50,16 @@ class CategoriesScreen extends StatefulWidget {
 }
 
 class _CategoriesScreenState extends State<CategoriesScreen> with AutomaticKeepAliveClientMixin {
-  // AutomaticKeepAliveClientMixin: يحافظ على مكان السكرول عند التنقل بين التابات
-
   String? selectedGovernorate;
   String? selectedArea;
   List<Category> allCategories = [];
   List<Category> displayedCategories = [];
 
+  // Scroll Controller to handle shrink/expand effects if needed
+  final ScrollController _scrollController = ScrollController();
+
   @override
-  bool get wantKeepAlive => true; // تفعيل الحفاظ على الحالة
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -64,10 +67,16 @@ class _CategoriesScreenState extends State<CategoriesScreen> with AutomaticKeepA
     _loadSavedLocation();
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadSavedLocation() async {
     final saved = await PreferencesService.getSavedLocation();
     if (saved['governorate'] != null && saved['area'] != null) {
-      if(mounted) {
+      if (mounted) {
         setState(() {
           selectedGovernorate = saved['governorate'];
           selectedArea = saved['area'];
@@ -92,56 +101,66 @@ class _CategoriesScreenState extends State<CategoriesScreen> with AutomaticKeepA
 
   @override
   Widget build(BuildContext context) {
-    super.build(context); // ضروري للـ KeepAlive
+    super.build(context);
 
     return Directionality(
       textDirection: TextDirection.rtl,
       child: MultiBlocProvider(
         providers: [
-          // 1. بلوك الأقسام
           BlocProvider(create: (_) => CategoryBloc(CategoryService())..add(FetchCategories())),
-          // 2. بلوك المناطق والمحافظات
           BlocProvider(create: (_) => GovernorateBloc(GovernorateService())..add(LoadGovernorates())),
           BlocProvider(create: (_) => AreaBloc(AreaService())..add(LoadAreas())),
-          // 3. بلوك الإعلانات (تم نقله هنا)
           BlocProvider(create: (_) => AdBloc(AdRepository(api: AdService(), cache: AdCache()))..add(FetchAdsEvent())),
         ],
         child: Scaffold(
-          backgroundColor: const Color(0xFFF8F9FA),
+          // لون خلفية عصري جداً (Off-white) يبرز البطاقات البيضاء
+          backgroundColor: AppColors.background,
+    floatingActionButton: FloatingActionButton.extended(
+    onPressed: () {
+    Navigator.push(context, MaterialPageRoute(builder: (context) => const ContactView()));
+    },
+      backgroundColor: AppColors.accent,
+      icon: const Icon(Icons.add_business_rounded, color: Colors.white),
+      label: const Text(
+        "أضف خدمتك الآن",
+        style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 16
+        ),
+      ),
+      elevation: 4,
+    ),
+
           body: SafeArea(
             bottom: false,
-            child: BlocConsumer<CategoryBloc, CategoryState>( // 🔥 حولنا من Builder لـ Consumer
+            child: BlocConsumer<CategoryBloc, CategoryState>(
               listener: (context, state) {
-                // 🔔 كود إظهار الرسالة هنا
                 if (state is CategoryLoaded && state.isOffline) {
-                  ScaffoldMessenger.of(context).hideCurrentSnackBar(); // إخفاء أي رسالة سابقة
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Row(
                         children: const [
-                          Icon(Icons.wifi_off, color: Colors.white, size: 20),
-                          SizedBox(width: 10),
-                          Text("أنت تتصفح النسخة المحفوظة (لا يوجد إنترنت)"),
+                          Icon(Icons.wifi_off_rounded, color: Colors.white, size: 20),
+                          SizedBox(width: 12),
+                          Text(" وضع التصفح دون اتصال بالانترنيت", style: TextStyle(fontFamily: 'Cairo')), // تأكد من وجود خط جميل
                         ],
                       ),
-                      backgroundColor: Colors.grey[800],
-                      duration: const Duration(seconds: 4),
+                      backgroundColor: const Color(0xFF323232),
                       behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       margin: const EdgeInsets.all(16),
                     ),
                   );
                 }
-
                 if (state is CategoryError) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(state.message), backgroundColor: Colors.red),
+                    SnackBar(content: Text(state.message), backgroundColor: Colors.redAccent),
                   );
                 }
               },
               builder: (context, state) {
-
-                // منطق تحديث البيانات
                 if (state is CategoryLoaded) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     if (allCategories != state.response.data) {
@@ -163,96 +182,127 @@ class _CategoriesScreenState extends State<CategoriesScreen> with AutomaticKeepA
                     return false;
                   },
                   child: CustomScrollView(
-                    physics: const BouncingScrollPhysics(), // سكرول مرن مثل iOS
+                    controller: _scrollController,
+                    physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
                     slivers: [
-                      // --- 1. الهيدر والبحث (SliverAppBar) ---
-                      // يختفي ويظهر بذكاء عند السكرول
+                      // --- 1. هيدر البحث المتطور ---
+                      // --- 1. الهيدر الاحترافي (Facebook/WhatsApp Style) ---
                       SliverAppBar(
+                        pinned: true,
                         floating: true,
-                        pinned: false,
                         snap: true,
-                        backgroundColor: const Color(0xFFF8F9FA),
-                        elevation: 0,
-                        toolbarHeight: 80,
-                        title: _buildSearchHeader(context),
-                        centerTitle: true,
-                        automaticallyImplyLeading: false,
-                      ),
+                        backgroundColor: Colors.white, // خلفية بيضاء نقية
+                        surfaceTintColor: Colors.white, // لمنع تغير اللون عند السكرول في أندرويد الحديث
+                        elevation: 0, // إلغاء الظل ليبدو مسطحاً وعصرياً
+                        expandedHeight: 120, // ارتفاع يسمح بوجود العنوان وشريط البحث
+                        toolbarHeight: 60,
 
-                      // --- 2. الإعلانات (تم دمجها بذكاء) ---
-                      // --- 2. الإعلانات (تم دمجها بذكاء) ---
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 16.0, left: 16, right: 16),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            // 🔥 التعديل هنا: أزلنا SizedBox(height: 180)
-                            // وتركنا الويدجت تأخذ راحتها
-                            child: const AdCarouselView(),
+                        // العنوان (دليل سوريا) بلون البراند
+                        title: const Text(
+                          "دليل سوريا",
+                          style: TextStyle(
+                            color: AppColors.primary, // اللون البرتقالي
+                            fontWeight: FontWeight.w900, // خط عريض جداً وقوي
+                            fontSize: 26,
+                            fontFamily: 'Cairo', // تأكد من تناسق الخط
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        centerTitle: false, // العنوان على اليمين
+
+                        // شريط البحث يظهر في الأسفل كجزء من الهيدر
+                        bottom: PreferredSize(
+                          preferredSize: const Size.fromHeight(60),
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 12, left: 16, right: 16),
+                            child: _buildCleanSearchBar(context),
                           ),
                         ),
                       ),
 
-                      // --- 3. الفلاتر (SliverPersistentHeader) ---
-                      // تبقى مثبتة في الأعلى عند النزول للأسفل
+                      // --- 2. سلايدر الإعلانات ---
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 10),
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(20),
+                              child: const AdCarouselView(),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // --- 3. الفلتر الذكي (Sticky Header) ---
                       SliverPersistentHeader(
                         pinned: true,
                         delegate: _SliverFiltersDelegate(
-                          minHeight: 70.0,
-                          maxHeight: 70.0,
-                          child: Container(
-                            color: const Color(0xFFF8F9FA), // نفس لون الخلفية للاندماج
-                            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
-                            child: _buildFiltersRow(context),
-                          ),
+                          minHeight: 85.0, // زيادة الارتفاع
+                          maxHeight: 85.0,
+                          child: _buildGlassyFilters(context),
                         ),
                       ),
 
-                      // 🔥🔥🔥 الإضافة الاحترافية هنا 🔥🔥🔥
-// نظهر التلميح فقط إذا لم يتم اختيار المحافظة أو المنطقة
+                      // --- 4. تلميح الموقع التفاعلي ---
                       if (selectedGovernorate == null || selectedArea == null)
                         SliverToBoxAdapter(
-                          child: AnimatedSwitcher(
-                            // تأثير اختفاء ناعم جداً عند الاختيار
-                            duration: const Duration(milliseconds: 500),
-                            transitionBuilder: (Widget child, Animation<double> animation) {
-                              return SizeTransition(sizeFactor: animation, child: FadeTransition(opacity: animation, child: child));
-                            },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
                             child: const LocationSelectionHint(key: ValueKey('hint')),
                           ),
                         ),
 
-                      // --- 4. محتوى الشبكة (Grid) ---
+                      // --- 5. شبكة الأقسام (الخدمات) ---
                       if (state is CategoryLoading && allCategories.isEmpty)
-                        SliverToBoxAdapter(child: _buildLoadingShimmerGrid())
+                        SliverPadding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          sliver: SliverToBoxAdapter(child: _buildLoadingShimmerGrid()),
+                        )
                       else if (state is CategoryError && allCategories.isEmpty)
                         SliverFillRemaining(child: _buildErrorView(context, state.message))
                       else if (displayedCategories.isEmpty)
                           SliverFillRemaining(
                             hasScrollBody: false,
-                            child: Center(child: Text("لا توجد أقسام في هذه المنطقة", style: TextStyle(color: Colors.grey[500]))),
+                            child: Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.search_off_rounded, size: 80, color: Colors.grey[300]),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    "لا توجد خدمات متاحة هنا حالياً",
+                                    style: TextStyle(fontSize: 16, color: Colors.grey[500], fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                            ),
                           )
                         else
                           SliverPadding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
                             sliver: SliverGrid(
                               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 2,
-                                childAspectRatio: 0.72, // تحسين النسبة لتناسب الصور والنصوص
-                                crossAxisSpacing: 14,
-                                mainAxisSpacing: 14,
+                                childAspectRatio: 0.8, // نسبة أطول قليلاً لجمالية الكرت
+                                crossAxisSpacing: 16,
+                                mainAxisSpacing: 16,
                               ),
                               delegate: SliverChildBuilderDelegate(
                                     (context, index) {
                                   if (index < displayedCategories.length) {
-                                    return _buildAnimatedCard(displayedCategories[index], index);
+                                    return _buildPremiumCard(displayedCategories[index], index);
                                   } else {
-                                    return const Center(
-                                      child: Padding(
-                                        padding: EdgeInsets.all(8.0),
-                                        child: CircularProgressIndicator(strokeWidth: 2),
-                                      ),
-                                    );
+                                    return const Center(child: CircularProgressIndicator());
                                   }
                                 },
                                 childCount: displayedCategories.length +
@@ -261,7 +311,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with AutomaticKeepA
                             ),
                           ),
 
-                      const SliverPadding(padding: EdgeInsets.only(bottom: 30)),
+                      const SliverPadding(padding: EdgeInsets.only(bottom: 80)),
                     ],
                   ),
                 );
@@ -273,10 +323,10 @@ class _CategoriesScreenState extends State<CategoriesScreen> with AutomaticKeepA
     );
   }
 
-  // --- Widgets ---
+  // --- UI Components ---
 
-  // هيدر البحث الجديد (عصري جداً)
-  Widget _buildSearchHeader(BuildContext context) {
+  // 1. هيدر البحث الفخم
+  Widget _buildModernSearchHeader(BuildContext context) {
     return GestureDetector(
       onTap: () {
         final searchRepository = ServiceRepository(ServiceApi());
@@ -286,35 +336,49 @@ class _CategoriesScreenState extends State<CategoriesScreen> with AutomaticKeepA
         );
       },
       child: Container(
-        height: 50,
+        height: 56,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4)),
+            BoxShadow(
+              color: const Color(0xFF909090).withOpacity(0.08),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
           ],
-          border: Border.all(color: Colors.grey.withOpacity(0.1)),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Row(
           children: [
-            Icon(Icons.search, color: AppColors.primary, size: 24),
-            const SizedBox(width: 12),
+            Icon(Icons.search_rounded, color: AppColors.primary, size: 26),
+            const SizedBox(width: 14),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text("ابحث عن خدمة...", style: TextStyle(color: Colors.grey[400], fontSize: 13, fontWeight: FontWeight.w400)),
+                Text(
+                  "عن ماذا تبحث اليوم؟",
+                  style: TextStyle(
+                    color: Colors.grey[800],
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  "ابحث عن خدمات، محلات، فنيين...",
+                  style: TextStyle(color: Colors.grey[400], fontSize: 11),
+                ),
               ],
             ),
             const Spacer(),
             Container(
-              padding: const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
+                color: AppColors.primary.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(Icons.tune_rounded, color: AppColors.primary, size: 18),
+              child: Icon(Icons.tune_rounded, color: AppColors.primary, size: 20),
             )
           ],
         ),
@@ -322,185 +386,358 @@ class _CategoriesScreenState extends State<CategoriesScreen> with AutomaticKeepA
     );
   }
 
-  Widget _buildFiltersRow(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: BlocBuilder<GovernorateBloc, GovernorateState>(
-            builder: (context, state) {
-              List<Governorate> govs = [];
-              if (state is GovernorateLoaded) govs = state.governorates;
-
-              return _buildFilterChip(
-                hint: "المحافظة",
-                value: selectedGovernorate,
-                items: govs.map((g) => g.name).toList(),
-                icon: Icons.map_outlined,
-                onChanged: (val) async {
-                  setState(() {
-                    selectedGovernorate = val;
-                    selectedArea = null;
-                  });
-                  await PreferencesService.saveLocation(
-                      governorate: selectedGovernorate!, area: selectedArea ?? '');
-                  applyFilter();
-                },
-              );
-            },
+  // 2. الفلتر الزجاجي (Glassmorphism)
+  Widget _buildGlassyFilters(BuildContext context) {
+    // نستخدم ClipRRect مع BackdropFilter لعمل تأثير ضبابي للخلفية أثناء السكرول
+    return ClipRRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          color: const Color(0xFFF6F8FB).withOpacity(0.85), // شفافية لظهور البلور
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
+          alignment: Alignment.center,
+          child: Row(
+            children: [
+              Expanded(
+                child: BlocBuilder<GovernorateBloc, GovernorateState>(
+                  builder: (context, state) {
+                    List<Governorate> govs = state is GovernorateLoaded ? state.governorates : [];
+                    return _buildPremiumDropdown(
+                      hint: "المحافظة",
+                      value: selectedGovernorate,
+                      items: govs.map((g) => g.name).toList(),
+                      icon: Icons.map_rounded,
+                      onChanged: (val) async {
+                        setState(() {
+                          selectedGovernorate = val;
+                          selectedArea = null;
+                        });
+                        await PreferencesService.saveLocation(
+                            governorate: selectedGovernorate!, area: selectedArea ?? '');
+                        applyFilter();
+                      },
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: BlocBuilder<AreaBloc, AreaState>(
+                  builder: (context, state) {
+                    List<Area> areas = [];
+                    if (state is AreaLoaded) {
+                      areas = state.areas.cast<Area>();
+                      if (selectedGovernorate != null) {
+                        areas = areas.where((a) => a.governorate.name == selectedGovernorate).toList();
+                      }
+                    }
+                    return _buildPremiumDropdown(
+                      hint: "المنطقة",
+                      value: selectedArea,
+                      items: areas.map((a) => a.name).toList(),
+                      icon: Icons.location_on_rounded,
+                      onChanged: (val) async {
+                        setState(() => selectedArea = val);
+                        await PreferencesService.saveLocation(
+                            governorate: selectedGovernorate ?? '', area: selectedArea!);
+                        applyFilter();
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: BlocBuilder<AreaBloc, AreaState>(
-            builder: (context, state) {
-              List<Area> areas = [];
-              if (state is AreaLoaded) {
-                areas = state.areas.cast<Area>();
-                if (selectedGovernorate != null) {
-                  areas = areas.where((a) => a.governorate.name == selectedGovernorate).toList();
-                }
-              }
-              return _buildFilterChip(
-                hint: "المنطقة",
-                value: selectedArea,
-                items: areas.map((a) => a.name).toList(),
-                icon: Icons.location_city_rounded,
-                onChanged: (val) async {
-                  setState(() => selectedArea = val);
-                  await PreferencesService.saveLocation(
-                      governorate: selectedGovernorate ?? '', area: selectedArea!);
-                  applyFilter();
-                },
-              );
-            },
-          ),
-        ),
-      ],
+      ),
     );
   }
 
-  // تصميم Dropdown على شكل Chip عصري
-  Widget _buildFilterChip({
+  Widget _buildPremiumDropdown({
     required String hint,
     required String? value,
     required List<String> items,
     required IconData icon,
     required Function(String?) onChanged,
   }) {
-    bool needsAttention = value == null;
+    final bool isSelected = value != null;
     return Container(
-      height: 48,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      height: 55,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(color: Colors.grey.withOpacity(0.08), blurRadius: 4, offset: const Offset(0, 2))
-        ],
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-            color: needsAttention && (selectedGovernorate == null || selectedArea == null)
-                ? AppColors.primary.withOpacity(0.5) // لون أحمر خفيف أو لون البراند
-                : Colors.transparent,
-            width: 1.5
+          color: isSelected ? AppColors.primary : Colors.transparent,
+          width: 1.5,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: isSelected ? AppColors.primary.withOpacity(0.15) : Colors.grey.withOpacity(0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ],
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: value,
+          icon: Icon(Icons.keyboard_arrow_down_rounded,
+              color: isSelected ? AppColors.primary : Colors.grey[400]),
           hint: Row(
             children: [
-              Icon(icon, size: 16, color: Colors.grey[500]),
-              const SizedBox(width: 8),
-              Text(hint, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+              Icon(icon, size: 18, color: Colors.grey[400]),
+              const SizedBox(width: 10),
+              Text(hint, style: TextStyle(fontSize: 13, color: Colors.grey[500])),
             ],
           ),
           isExpanded: true,
-          icon: Icon(Icons.keyboard_arrow_down_rounded, color: value != null ? AppColors.primary : Colors.grey[400]),
-          borderRadius: BorderRadius.circular(12),
-          items: items.map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13)))).toList(),
+          style: const TextStyle(
+              color: Colors.black87, fontSize: 14, fontWeight: FontWeight.bold, fontFamily: 'Cairo'), // استخدم خط التطبيق
+          borderRadius: BorderRadius.circular(16),
+          items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
           onChanged: onChanged,
         ),
       ),
     );
   }
 
-  Widget _buildAnimatedCard(Category category, int index) {
+  // 3. الكرت الخرافي (Premium Card)
+  Widget _buildPremiumCard(Category category, int index) {
+    // حركة دخول متتالية للبطاقات
     return TweenAnimationBuilder<double>(
-      duration: Duration(milliseconds: 300 + (index % 4) * 50), // حركة متتابعة
+      duration: Duration(milliseconds: 400 + (index % 5) * 100),
       tween: Tween(begin: 0.0, end: 1.0),
-      curve: Curves.easeOutBack,
+      curve: Curves.easeOutQuart,
       builder: (context, value, child) {
-        return Transform.scale(
-          scale: value,
-          child: child,
+        return Transform.translate(
+          offset: Offset(0, 50 * (1 - value)), // حركة من الأسفل للأعلى
+          child: Opacity(
+            opacity: value,
+            child: child,
+          ),
         );
       },
-      child: GestureDetector(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => SubCategoryScreen(categoryId: category.id, categoryName: category.name),
-            ),
-          );
-        },
+      child: _InteractiveCard(category: category),
+    );
+  }
+
+  Widget _buildLoadingShimmerGrid() {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 0.8,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+      ),
+      itemCount: 6,
+      itemBuilder: (_, __) => Shimmer.fromColors(
+        baseColor: Colors.grey[300]!,
+        highlightColor: Colors.grey[100]!,
         child: Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(24),
+          ),
+        ),
+      ),
+    );
+  }
+  // شريط البحث "النظيف" بدون أيقونات (Clean Minimalist Search)
+  Widget _buildCleanSearchBar(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        final searchRepository = ServiceRepository(ServiceApi());
+        showSearch(
+          context: context,
+          delegate: ProfessionalSearchDelegate(GlobalSearchBloc(searchRepository)),
+        );
+      },
+      child: Container(
+        height: 45, // ارتفاع مريح للعين
+        width: double.infinity,
+        alignment: Alignment.centerRight, // النص يبدأ من اليمين
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF0F2F5), // لون رمادي فاتح جداً (مثل فيسبوك)
+          borderRadius: BorderRadius.circular(30), // حواف دائرية بالكامل (Capsule shape)
+        ),
+        child: Text(
+          "ابحث عن خدمة، مطعم، مهنة...", // النص التوضيحي
+          style: TextStyle(
+            color: Colors.grey[500], // لون النص رمادي هادئ
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorView(BuildContext context, String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.redAccent.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.cloud_off_rounded, size: 40, color: Colors.redAccent),
+          ),
+          const SizedBox(height: 16),
+          Text(message, style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: () => context.read<CategoryBloc>().add(FetchCategories()),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 4,
+              shadowColor: AppColors.primary.withOpacity(0.4),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text("محاولة مجدداً"),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// --- ويدجت الكرت التفاعلي (منفصلة لتحسين الأداء) ---
+class _InteractiveCard extends StatefulWidget {
+  final Category category;
+  const _InteractiveCard({required this.category});
+
+  @override
+  State<_InteractiveCard> createState() => _InteractiveCardState();
+}
+
+class _InteractiveCardState extends State<_InteractiveCard> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 150),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => _controller.forward(),
+      onTapUp: (_) => _controller.reverse(),
+      onTapCancel: () => _controller.reverse(),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SubCategoryScreen(
+                categoryId: widget.category.id, categoryName: widget.category.name),
+          ),
+        );
+      },
+      child: AnimatedBuilder(
+        animation: _scaleAnimation,
+        builder: (context, child) => Transform.scale(
+          scale: _scaleAnimation.value,
+          child: child,
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24), // حواف دائرية كبيرة
             boxShadow: [
-              BoxShadow(color: const Color(0xFFE0E0E0).withOpacity(0.5), blurRadius: 10, offset: const Offset(0, 4)),
+              BoxShadow(
+                color: const Color(0xFF909090).withOpacity(0.1), // ظل ناعم جداً
+                blurRadius: 15,
+                offset: const Offset(0, 8),
+                spreadRadius: 0,
+              ),
             ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // 1. الصورة
               Expanded(
-                flex: 6,
+                flex: 7, // الصورة تأخذ مساحة أكبر
                 child: Padding(
-                  padding: const EdgeInsets.all(8.0),
+                  padding: const EdgeInsets.all(6.0),
                   child: Container(
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
-                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(20),
+                      color: const Color(0xFFF6F8FB),
                     ),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(20),
                       child: CachedNetworkImage(
-                        imageUrl: category.imageUrl?.replaceFirst("http://", "https://") ?? "",
-                        fit: BoxFit.contain, // تغيير ل contain لتظهر الصورة كاملة
-                        placeholder: (_, __) => Center(child: Icon(Icons.image, color: Colors.grey[200], size: 40)),
-                        errorWidget: (_, __, ___) => Center(child: Icon(Icons.broken_image, color: Colors.grey[300])),
+                        imageUrl: widget.category.imageUrl?.replaceFirst("http://", "https://") ?? "",
+                        fit: BoxFit.cover, // تغيير لـ Cover لجعل الصورة تملأ المكان بجمالية
+                        placeholder: (_, __) => Center(
+                            child: Icon(Icons.image, color: Colors.grey[300], size: 40)),
+                        errorWidget: (_, __, ___) => Center(
+                            child: Icon(Icons.broken_image_rounded, color: Colors.grey[300])),
                       ),
                     ),
                   ),
                 ),
               ),
+              // 2. النصوص
               Expanded(
                 flex: 4,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        category.name,
+                        widget.category.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                          height: 1.2,
+                        ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 6),
                       Row(
                         children: [
-                          Icon(Icons.location_on, size: 10, color: AppColors.primary),
-                          const SizedBox(width: 2),
+                          Icon(Icons.location_on_rounded, size: 14, color: AppColors.primary),
+                          const SizedBox(width: 4),
                           Expanded(
                             child: Text(
-                              category.area.name,
+                              widget.category.area.name,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey[500],
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
                         ],
@@ -516,55 +753,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> with AutomaticKeepA
     );
   }
 
-  Widget _buildLoadingShimmerGrid() {
-    return Shimmer.fromColors(
-      baseColor: Colors.grey[300]!,
-      highlightColor: Colors.grey[100]!,
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          childAspectRatio: 0.72,
-          crossAxisSpacing: 14,
-          mainAxisSpacing: 14,
-        ),
-        itemCount: 6,
-        padding: const EdgeInsets.all(16),
-        itemBuilder: (_, __) => Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildErrorView(BuildContext context, String message) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.cloud_off, size: 60, color: Colors.grey[400]),
-          const SizedBox(height: 16),
-          Text("تأكد من اتصالك بالإنترنت", style: TextStyle(color: Colors.grey[600])),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: () => context.read<CategoryBloc>().add(FetchCategories()),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: const Text("تحديث", style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
-// Delegate للفلتر المثبت (Sticky Header)
+// Delegate للفلتر (Sticky Header)
 class _SliverFiltersDelegate extends SliverPersistentHeaderDelegate {
   final double minHeight;
   final double maxHeight;
@@ -583,10 +774,11 @@ class _SliverFiltersDelegate extends SliverPersistentHeaderDelegate {
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) => SizedBox.expand(child: child);
   @override
-  bool shouldRebuild(_SliverFiltersDelegate oldDelegate) => maxHeight != oldDelegate.maxHeight || minHeight != oldDelegate.minHeight || child != oldDelegate.child;
+  bool shouldRebuild(_SliverFiltersDelegate oldDelegate) =>
+      maxHeight != oldDelegate.maxHeight || minHeight != oldDelegate.minHeight || child != oldDelegate.child;
 }
 
-// --- ويدجت التلميح الاحترافي ---
+// --- ويدجت التلميح الاحترافي (نفس الكود السابق مع تعديلات طفيفة) ---
 class LocationSelectionHint extends StatefulWidget {
   const LocationSelectionHint({super.key});
 
@@ -594,23 +786,15 @@ class LocationSelectionHint extends StatefulWidget {
   State<LocationSelectionHint> createState() => _LocationSelectionHintState();
 }
 
-class _LocationSelectionHintState extends State<LocationSelectionHint>
-    with SingleTickerProviderStateMixin {
+class _LocationSelectionHintState extends State<LocationSelectionHint> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
 
   @override
   void initState() {
     super.initState();
-    // إعداد حركة القفز (Bouncing)
-    _controller = AnimationController(
-      duration: const Duration(seconds: 1), // سرعة الحركة
-      vsync: this,
-    )..repeat(reverse: true); // تكرار الحركة ذهاباً وإياباً
-
-    _animation = Tween<double>(begin: 0, end: 10).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _controller = AnimationController(duration: const Duration(milliseconds: 1200), vsync: this)..repeat(reverse: true);
+    _animation = Tween<double>(begin: 0, end: 8).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -622,70 +806,49 @@ class _LocationSelectionHintState extends State<LocationSelectionHint>
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      padding: const EdgeInsets.all(15),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        // خلفية متدرجة جذابة
         gradient: LinearGradient(
-          colors: [AppColors.primary.withOpacity(0.1), Colors.white],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
+          colors: [AppColors.primary.withOpacity(0.08), Colors.white],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.primary.withOpacity(0.15)),
         boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
+          BoxShadow(color: AppColors.primary.withOpacity(0.05), blurRadius: 15, offset: const Offset(0, 5)),
         ],
       ),
       child: Row(
         children: [
-          // السهم المتحرك
           AnimatedBuilder(
             animation: _animation,
             builder: (context, child) {
               return Transform.translate(
-                offset: Offset(0, -_animation.value), // تحريك للأعلى والأسفل
+                offset: Offset(0, -_animation.value),
                 child: Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: AppColors.primary,
                     shape: BoxShape.circle,
                     boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withOpacity(0.4),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      )
+                      BoxShadow(color: AppColors.primary.withOpacity(0.4), blurRadius: 8, offset: const Offset(0, 4))
                     ],
                   ),
-                  child: const Icon(Icons.arrow_upward_rounded, color: Colors.white, size: 24),
+                  child: const Icon(Icons.arrow_upward_rounded, color: Colors.white, size: 20),
                 ),
               );
             },
           ),
-          const SizedBox(width: 15),
-          // النص التوضيحي
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  "حدد منطقتك أولاً!",
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
-                  ),
-                ),
+                Text("حدد منطقتك لعرض الخدمات!", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary)),
                 const SizedBox(height: 4),
-                Text(
-                  "لنظهر لك الخدمات المتاحة بالقرب منك بدقة.",
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                ),
+                Text("تصفح أفضل الخدمات القريبة منك الآن.", style: TextStyle(fontSize: 12, color: Colors.grey[600])),
               ],
             ),
           ),
