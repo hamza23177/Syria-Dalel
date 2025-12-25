@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:animate_do/animate_do.dart';
-import 'package:shimmer/shimmer.dart'; // يفضل إضافة هذه المكتبة لتأثير التحميل
+import 'package:shimmer/shimmer.dart';
 import 'ad_details_page.dart';
 import 'bloc.dart';
 import 'state.dart';
@@ -48,6 +48,7 @@ class _AdCarouselViewState extends State<AdCarouselView> {
           if (ads.isEmpty) return const SizedBox();
 
           return Column(
+            mainAxisSize: MainAxisSize.min, // 🔥 مهم جداً: يجعل العمود يأخذ أقل مساحة ممكنة
             children: [
               CarouselSlider.builder(
                 carouselController: _controller,
@@ -57,14 +58,21 @@ class _AdCarouselViewState extends State<AdCarouselView> {
                   return _buildAdCard(ad, index);
                 },
                 options: CarouselOptions(
-                  height: 220, // ارتفاع مثالي للإعلانات العريضة
+                  // 🔥 التعديل الجوهري للـ Responsiveness
+                  // بدلاً من height: 220، نستخدم aspectRatio
+                  aspectRatio: 16 / 9, // نسبة السينما (مثالية للإعلانات)
+                  // يمكنك استخدام 2.0 إذا أردت الإعلان أقل ارتفاعاً
+
+                  viewportFraction: 1.0, // جعلنا الصورة تأخذ كامل العرض لجمالية أكثر
+                  initialPage: 0,
+                  enableInfiniteScroll: true,
+                  reverse: false,
                   autoPlay: true,
-                  viewportFraction: 0.92, // عرض الصورة بالنسبة للشاشة
-                  enlargeCenterPage: true, // تكبير العنصر الأوسط
-                  enlargeStrategy: CenterPageEnlargeStrategy.height, // تكبير ناعم
                   autoPlayInterval: const Duration(seconds: 5),
                   autoPlayAnimationDuration: const Duration(milliseconds: 800),
                   autoPlayCurve: Curves.fastOutSlowIn,
+                  enlargeCenterPage: false, // ألغيناها لأننا جعلنا العرض 1.0
+                  scrollDirection: Axis.horizontal,
                   onPageChanged: (index, reason) {
                     setState(() => _current = index);
                   },
@@ -75,7 +83,6 @@ class _AdCarouselViewState extends State<AdCarouselView> {
             ],
           );
         } else if (state is AdError) {
-          // في حال الخطأ نخفي القسم بدلاً من عرض نص قبيح، أو نعرض أيقونة تحديث
           return const SizedBox();
         } else {
           return const SizedBox();
@@ -84,7 +91,6 @@ class _AdCarouselViewState extends State<AdCarouselView> {
     );
   }
 
-  // ✅ تصميم بطاقة الإعلان الاحترافية
   Widget _buildAdCard(dynamic ad, int index) {
     return GestureDetector(
       onTap: () {
@@ -94,194 +100,119 @@ class _AdCarouselViewState extends State<AdCarouselView> {
         );
       },
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
+        // إزالة الهوامش الجانبية لأننا نستخدم ClipRRect في الـ Parent
+        width: double.infinity,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withOpacity(0.2), // ظل ملون بلون البراند
-              blurRadius: 15,
-              offset: const Offset(0, 8),
-            ),
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 5,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          color: Colors.grey[200],
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // 1. الصورة الخلفية
-              CachedNetworkImage(
-                imageUrl: (ad.firstImageUrl ?? "").replaceFirst("http://", "https://"),
-                fit: BoxFit.cover,
-                placeholder: (context, url) => Container(color: Colors.grey[200]),
-                errorWidget: (context, url, error) => Container(
-                  color: Colors.grey[300],
-                  child: const Icon(Icons.broken_image, color: Colors.grey),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // 1. الصورة
+            CachedNetworkImage(
+              imageUrl: (ad.firstImageUrl ?? "").replaceFirst("http://", "https://"),
+              fit: BoxFit.cover,
+              placeholder: (context, url) => Container(color: Colors.grey[200]),
+              errorWidget: (context, url, error) => const Icon(Icons.broken_image, color: Colors.grey),
+            ),
+
+            // 2. تدرج لوني
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withOpacity(0.7),
+                  ],
+                  stops: const [0.6, 1.0],
                 ),
               ),
+            ),
 
-              // 2. التدرج اللوني (Overlay) لقراءة النصوص بوضوح
-              Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withOpacity(0.0),
-                      Colors.black.withOpacity(0.2),
-                      Colors.black.withOpacity(0.8),
-                    ],
-                    stops: const [0.4, 0.7, 1.0],
+            // 3. النصوص (مع حماية من Overflow)
+            Positioned(
+              bottom: 12,
+              left: 12,
+              right: 12,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          "اكتشف العروض",
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        // 🔥 حماية النص من الخروج عن الحدود
+                        Text(
+                          "أقوى العروض الحصرية",
+                          maxLines: 1, // سطر واحد فقط
+                          overflow: TextOverflow.ellipsis, // وضع ... اذا النص طويل
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ),
-
-              // 3. شارة "مميز" في الأعلى (تعطي احترافية)
-              Positioned(
-                top: 12,
-                left: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.6),
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(color: Colors.white24),
-                  ),
-                  child: Row(
-                    children: const [
-                      Icon(Icons.star, color: Colors.amber, size: 12),
-                      SizedBox(width: 4),
-                      Text(
-                        "مميز",
-                        style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // 4. عدد الصور (إذا وجد)
-              if (ad.images.length > 1)
-                Positioned(
-                  top: 12,
-                  right: 12,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
+                  const SizedBox(width: 10),
+                  // الزر الصغير
+                  Container(
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.4),
+                      color: AppColors.primary,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.photo_library, color: Colors.white, size: 14),
+                    child: const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 14),
                   ),
-                ),
-
-              // 5. المحتوى النصي وزر الدعوة (Call To Action)
-              Positioned(
-                bottom: 15,
-                left: 15,
-                right: 15,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    // نص العنوان (إذا وجد في المودل، أو نص افتراضي)
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            "اكتشف المزيد", // أو ad.title إذا وجد
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.8),
-                              fontSize: 12,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            "أفضل العروض هنا", // نص تسويقي
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              shadows: [Shadow(blurRadius: 4, color: Colors.black)],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // زر التفاعل الدائري (Call to Action)
-                    Pulse(
-                      infinite: true,
-                      duration: const Duration(seconds: 3),
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary, // لون البراند
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.primary.withOpacity(0.4),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(Icons.arrow_forward, color: Colors.white, size: 20),
-                      ),
-                    ),
-                  ],
-                ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  // ✅ مؤشر الصفحات المتحرك (Worm Effect)
   Widget _buildAnimatedIndicators(int length) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(length, (index) {
-        bool isSelected = _current == index;
         return AnimatedContainer(
           duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-          margin: const EdgeInsets.symmetric(horizontal: 3),
-          width: isSelected ? 20 : 6,
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          width: _current == index ? 20 : 6,
           height: 6,
           decoration: BoxDecoration(
-            color: isSelected ? AppColors.primary : Colors.grey.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(10),
+            color: _current == index ? AppColors.primary : Colors.grey[300],
+            borderRadius: BorderRadius.circular(3),
           ),
         );
       }),
     );
   }
 
-  // ✅ شاشة تحميل جميلة (Skeleton)
+  // 🔥 تعديل الشيمر ليكون Responsive أيضاً
   Widget _buildShimmerLoading() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+    return AspectRatio(
+      aspectRatio: 16/9,
       child: Shimmer.fromColors(
         baseColor: Colors.grey[300]!,
         highlightColor: Colors.grey[100]!,
         child: Container(
-          height: 220,
-          margin: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(16),
           ),
         ),
       ),

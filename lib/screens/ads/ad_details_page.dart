@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../models/ad_model.dart'; // تأكد من المسار
-import '../../constant.dart'; // تأكد من المسار
 import 'package:carousel_slider/carousel_slider.dart';
+import 'package:flutter_linkify/flutter_linkify.dart'; // ✅ 1. استيراد المكتبة
+
+import '../../models/ad_model.dart';
+import '../../constant.dart';
 
 class AdDetailsPage extends StatefulWidget {
   final AdModel ad;
@@ -19,31 +21,49 @@ class _AdDetailsPageState extends State<AdDetailsPage> {
 
   Future<void> _callPhone(String phone) async {
     final Uri uri = Uri(scheme: 'tel', path: phone);
-      await launchUrl(uri);
+    await launchUrl(uri);
   }
 
   Future<void> _openMap(String address) async {
     final query = Uri.encodeComponent(address);
-    // استخدام صيغة URI أكثر مرونة لفتح تطبيق الخرائط (جوجل أو غيره)
     final url = Uri.parse('https://www.google.com/maps/search/?api=1&query=$query');
-      await launchUrl(url, mode: LaunchMode.externalApplication);
+    await launchUrl(url, mode: LaunchMode.externalApplication);
+  }
+
+  // ✅ 2. دالة فتح الروابط الذكية
+  Future<void> _onOpenLink(LinkableElement link) async {
+    String url = link.url;
+    // التأكد من وجود البروتوكول
+    if (!url.startsWith('http')) {
+      url = 'https://$url';
+    }
+
+    final Uri uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      // فتح في التطبيق الخارجي (مثل تطبيق فيسبوك)
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('لا يمكن فتح هذا الرابط')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final ad = widget.ad;
-    final images = ad.images.map((e) => e.url).toList(); // تحويل قائمة الكائنات إلى قائمة URL فقط
+    final images = ad.images.map((e) => e.url).toList();
 
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8F9FA), // خلفية موحدة
+        backgroundColor: const Color(0xFFF8F9FA),
         body: Stack(
           children: [
-            // 1. المحتوى القابل للتمرير (CustomScrollView)
+            // 1. المحتوى القابل للتمرير
             CustomScrollView(
               slivers: [
-                // --- Header صورة غامرة (SliverAppBar) ---
+                // --- Header ---
                 SliverAppBar(
                   expandedHeight: 350.0,
                   pinned: true,
@@ -74,14 +94,13 @@ class _AdDetailsPageState extends State<AdDetailsPage> {
                       color: Color(0xFFF8F9FA),
                       borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
                     ),
-                    // تحريك الكونتينر للأعلى قليلاً فوق الصورة
                     transform: Matrix4.translationValues(0.0, -20.0, 0.0),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // مقبض صغير جمالي
+                          // مقبض صغير
                           Center(
                             child: Container(
                               margin: const EdgeInsets.only(top: 12, bottom: 20),
@@ -132,13 +151,23 @@ class _AdDetailsPageState extends State<AdDetailsPage> {
                             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 8),
-                          Text(
-                            ad.description ?? "لا يوجد وصف مفصل لهذا الإعلان حالياً.",
+
+                          // ✅ 3. استبدال Text بـ SelectableLinkify (السحر هنا 🔥)
+                          SelectableLinkify(
+                            onOpen: _onOpenLink,
+                            text: ad.description ?? "لا يوجد وصف مفصل لهذا الإعلان حالياً.",
                             style: TextStyle(
                               fontSize: 15,
                               height: 1.6,
                               color: Colors.grey[700],
+                              fontFamily: 'YourFontFamily', // وحد الخط هنا
                             ),
+                            linkStyle: TextStyle(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.bold,
+                              decoration: TextDecoration.underline,
+                            ),
+                            options: const LinkifyOptions(humanize: false),
                           ),
 
                           const SizedBox(height: 24),
@@ -150,7 +179,6 @@ class _AdDetailsPageState extends State<AdDetailsPage> {
                           ),
                           const SizedBox(height: 12),
 
-                          // بطاقة الهاتف
                           _buildInfoCard(
                             icon: Icons.phone_in_talk_outlined,
                             title: "رقم الهاتف",
@@ -162,7 +190,6 @@ class _AdDetailsPageState extends State<AdDetailsPage> {
                           ),
                           const SizedBox(height: 10),
 
-                          // بطاقة العنوان
                           _buildInfoCard(
                             icon: Icons.location_on_outlined,
                             title: "العنوان",
@@ -173,7 +200,6 @@ class _AdDetailsPageState extends State<AdDetailsPage> {
                             },
                           ),
 
-                          // مسافة فارغة في الأسفل لعدم تغطية المحتوى بالزر العائم
                           const SizedBox(height: 100),
                         ],
                       ),
@@ -183,7 +209,7 @@ class _AdDetailsPageState extends State<AdDetailsPage> {
               ],
             ),
 
-            // 2. الشريط السفلي الثابت (Floating Bar)
+            // 2. الشريط السفلي الثابت
             _buildFloatingActionRow(ad),
           ],
         ),
@@ -209,7 +235,7 @@ class _AdDetailsPageState extends State<AdDetailsPage> {
                   PageRouteBuilder(
                     opaque: false,
                     pageBuilder: (_, __, ___) => FullScreenImageViewer(
-                      images: widget.ad.images, // نستخدم الكائن الأصلي هنا
+                      images: widget.ad.images,
                       initialIndex: index,
                     ),
                   ),
@@ -234,7 +260,6 @@ class _AdDetailsPageState extends State<AdDetailsPage> {
             onPageChanged: (index, reason) => setState(() => currentIndex = index),
           ),
         ),
-        // التدرج اللوني الأسود في الأسفل لجعل النقاط واضحة
         Container(
           height: 80,
           decoration: BoxDecoration(
@@ -245,7 +270,6 @@ class _AdDetailsPageState extends State<AdDetailsPage> {
             ),
           ),
         ),
-        // Dots Indicators
         Positioned(
           bottom: 30,
           child: Row(
@@ -268,7 +292,7 @@ class _AdDetailsPageState extends State<AdDetailsPage> {
     );
   }
 
-  // --- Widget: Info Card (سابقاً Tile) ---
+  // --- Widget: Info Card ---
   Widget _buildInfoCard({
     required IconData icon,
     required String title,
@@ -320,7 +344,7 @@ class _AdDetailsPageState extends State<AdDetailsPage> {
     );
   }
 
-  // --- Widget: الشريط السفلي الثابت (Floating Action Row) ---
+  // --- Widget: Floating Action Row ---
   Widget _buildFloatingActionRow(AdModel ad) {
     return Positioned(
       bottom: 0,
@@ -341,7 +365,6 @@ class _AdDetailsPageState extends State<AdDetailsPage> {
         ),
         child: Row(
           children: [
-            // زر الاتصال (الأساسي)
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: ad.phone != null && ad.phone!.isNotEmpty
@@ -359,12 +382,11 @@ class _AdDetailsPageState extends State<AdDetailsPage> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  disabledBackgroundColor: Colors.grey[300], // حالة عدم التوفر
+                  disabledBackgroundColor: Colors.grey[300],
                 ),
               ),
             ),
             const SizedBox(width: 12),
-            // زر الموقع (الثانوي)
             Expanded(
               child: OutlinedButton(
                 onPressed: ad.address != null && ad.address!.isNotEmpty
@@ -387,9 +409,7 @@ class _AdDetailsPageState extends State<AdDetailsPage> {
   }
 }
 
-//////////////////////////////////////////////////////////
-/// ✅ عرض الصور بالحجم الكامل (Lightbox Modern Gallery)
-//////////////////////////////////////////////////////////
+// ✅ FullScreenImageViewer (نفس الكلاس السابق)
 class FullScreenImageViewer extends StatefulWidget {
   final List<AdImage> images;
   final int initialIndex;
@@ -445,8 +465,6 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
               );
             },
           ),
-
-          // ✅ نقاط التمرير
           Positioned(
             bottom: 40,
             child: Row(
@@ -466,8 +484,6 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
               }),
             ),
           ),
-
-          // زر الإغلاق
           Positioned(
             top: 40,
             right: 20,

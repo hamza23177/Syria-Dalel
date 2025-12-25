@@ -50,20 +50,20 @@ void main() async {
   await Hive.initFlutter();
 
   // 2. تهيئة Workmanager
+  // 🔥 اجعل isInDebugMode: true لترى الإشعارات فوراً أثناء التجربة، ثم اجعلها false عند الرفع
   await Workmanager().initialize(
     callbackDispatcher,
-    isInDebugMode: false, // اجعلها true أثناء التجريب لرؤية الإشعارات فوراً
+    isInDebugMode: true,
   );
 
-  // 3. تهيئة الإشعارات
+  // 3. تهيئة الإشعارات (هنا يتم طلب الإذن عند فتح التطبيق)
   await NotificationService.init();
 
-  // 4. جدولة المهمة اليومية
+  // 4. جدولة المهمة
   await NotificationService.scheduleDailyTask();
 
-  // تحسين أداء الصور
   PaintingBinding.instance.imageCache.maximumSize = 200;
-  PaintingBinding.instance.imageCache.maximumSizeBytes = 1024 * 1024 * 150; // 150MB
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 1024 * 1024 * 150;
 
   runApp(const MyApp());
 }
@@ -76,7 +76,6 @@ class MyApp extends StatelessWidget {
     return MultiBlocProvider(
       // ... (نفس المزودات الخاصة بك) ...
       providers: [
-        BlocProvider(create: (_) => HomeBloc(HomeRepository(service: HomeService(), cache: HomeCache()))),
         BlocProvider(create: (_) => CategoryBloc(CategoryService())),
         BlocProvider(create: (_) => SubCategoryBloc(SubCategoryService())),
         BlocProvider(create: (_) => ServiceBloc(ServiceRepository(ServiceApi()))), // تأكد من النوع الصحيح هنا

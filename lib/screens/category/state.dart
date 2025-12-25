@@ -13,8 +13,13 @@ class CategoryLoading extends CategoryState {}
 class CategoryLoaded extends CategoryState {
   final CategoryResponse response;
   final bool isLoadingMore;
+  final bool isOffline;
 
-  CategoryLoaded(this.response, {this.isLoadingMore = false});
+  CategoryLoaded(
+      this.response, {
+        this.isLoadingMore = false,
+        this.isOffline = false, // 🔹 القيمة الافتراضية
+      });
 
   @override
   List<Object?> get props => [response, isLoadingMore];

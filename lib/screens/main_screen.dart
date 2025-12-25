@@ -1,8 +1,10 @@
+//screens/main_screen.dart
+
 import 'package:flutter/material.dart';
 import '../constant.dart';
 import 'category/view.dart';
 import 'contact/view.dart';
-import 'home/view.dart';
+// لم نعد بحاجة لاستيراد home/view.dart لأننا دمجناها
 
 class PersistentBtmBarExample extends StatefulWidget {
   const PersistentBtmBarExample({super.key});
@@ -13,99 +15,56 @@ class PersistentBtmBarExample extends StatefulWidget {
 }
 
 class _PersistentBtmBarExampleState extends State<PersistentBtmBarExample> {
-  int _index = 0;
-  late final List<Widget> _screens;
+  int _index = 0; // سيبدأ تلقائياً من الأقسام لأنها ستكون في المؤشر 0
 
-  @override
-  void initState() {
-    super.initState();
-    _screens = [
-      HomeScreen(),
-      CategoriesScreen(),
-      ContactView(),
-    ];
-  }
+  // تعريف الشاشات كثوابت للحفاظ على الحالة (Performance Optimization)
+  final List<Widget> _screens = [
+    const CategoriesScreen(), // أصبحت هي الرئيسية
+    const ContactView(),      // تواصل معنا
+    // يمكنك إضافة شاشة ثالثة هنا مثل "المفضلة" أو "حسابي" مستقبلاً
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        body: _screens[_index],
+        // استخدام IndexedStack يحافظ على حالة الشاشة عند التبديل (مهم جداً للأداء)
+        body: IndexedStack(
+          index: _index,
+          children: _screens,
+        ),
         bottomNavigationBar: Container(
           decoration: BoxDecoration(
-            color: AppColors.white,
+            color: Colors.white,
             boxShadow: [
               BoxShadow(
-                color: Colors.black12,
+                color: Colors.black.withOpacity(0.05),
                 blurRadius: 10,
-                offset: Offset(0, -2),
+                offset: const Offset(0, -5),
               ),
             ],
           ),
           child: BottomNavigationBar(
             currentIndex: _index,
             onTap: (i) => setState(() => _index = i),
-            backgroundColor: AppColors.white,
+            backgroundColor: Colors.white,
+            elevation: 0,
             selectedItemColor: AppColors.primary,
-            unselectedItemColor: AppColors.textLight,
-            selectedFontSize: 14,
-            unselectedFontSize: 12,
+            unselectedItemColor: Colors.grey[400],
+            selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+            unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11),
             type: BottomNavigationBarType.fixed,
-            items: [
+            items: const [
               BottomNavigationBarItem(
-                label: 'الرئيسية',
-                icon: Icon(Icons.home),
-              ),
-              BottomNavigationBarItem(
-                label: 'الأقسام',
-                icon: Icon(Icons.category),
+                label: 'الرئيسية', // غيرنا الاسم ليتناسب مع موقعها الجديد
+                icon: Icon(Icons.dashboard_rounded), // أيقونة تعبر عن الأقسام والخدمات
               ),
               BottomNavigationBarItem(
                 label: 'تواصل معنا',
-                icon: Icon(Icons.contact_mail),
+                icon: Icon(Icons.support_agent_rounded),
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// --- الشاشات بدون ScrollController ---
-
-class AdsScreen extends StatelessWidget {
-  const AdsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Text(
-            "الإعلانات",
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class ContactScreen extends StatelessWidget {
-  const ContactScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Text(
-            "تواصل معنا",
-            style: Theme.of(context).textTheme.titleLarge,
           ),
         ),
       ),

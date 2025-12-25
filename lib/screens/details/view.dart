@@ -3,11 +3,13 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:carousel_slider/carousel_slider.dart';
-import '../../models/service_model.dart'; // تأكد من المسار
-import '../../services/service_api.dart'; // تأكد من المسار
-import '../../constant.dart'; // تأكد من وجود AppColors
+import 'package:flutter_linkify/flutter_linkify.dart'; // ✅ 1. استيراد المكتبة السحرية
+
+import '../../models/service_model.dart';
+import '../../services/service_api.dart';
+import '../../constant.dart';
 import 'bloc.dart';
-import 'detail_skeleton.dart'; // تأكد من وجود السكلتون
+import 'detail_skeleton.dart';
 import 'event.dart';
 import 'state.dart';
 
@@ -26,15 +28,34 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
   // دالة الاتصال
   Future<void> _callPhone(String phone) async {
     final Uri uri = Uri(scheme: 'tel', path: phone);
-      await launchUrl(uri);
+    await launchUrl(uri);
   }
 
   // دالة فتح الخريطة
   Future<void> _openMap(String address) async {
-    // نحاول فتح جوجل مابس مباشرة
     final query = Uri.encodeComponent(address);
+    // نستخدم geo intent لضمان فتح تطبيق الخرائط الأصلي
     final googleUrl = Uri.parse("https://www.google.com/maps/search/?api=1&query=$query");
-      await launchUrl(googleUrl, mode: LaunchMode.externalApplication);
+    await launchUrl(googleUrl, mode: LaunchMode.externalApplication);
+  }
+
+  // ✅ 2. دالة فتح الروابط من الوصف (فيس بوك، انستغرام، ويب)
+  Future<void> _onOpenLink(LinkableElement link) async {
+    // تنظيف الرابط للتأكد من احتوائه على http
+    String url = link.url;
+    if (!url.startsWith('http')) {
+      url = 'https://$url';
+    }
+
+    final Uri uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      // mode: LaunchMode.externalApplication >> هذا الخيار يجبر الرابط على الفتح في التطبيق الخارجي (تطبيق فيسبوك مثلاً) وليس متصفح داخلي
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('لا يمكن فتح هذا الرابط')),
+      );
+    }
   }
 
   @override
@@ -44,7 +65,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
       child: BlocProvider(
         create: (_) => ServiceBloc(ServiceApi())..add(LoadServiceDetails(widget.serviceId)),
         child: Scaffold(
-          backgroundColor: const Color(0xFFF8F9FA), // خلفية فاتحة عصرية
+          backgroundColor: const Color(0xFFF8F9FA),
           body: BlocBuilder<ServiceBloc, ServiceState>(
             builder: (context, state) {
               if (state is ServiceLoading) {
@@ -59,11 +80,10 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
 
                 return Stack(
                   children: [
-                    // 1. المحتوى القابل للتمرير
                     CustomScrollView(
                       controller: _scrollController,
                       slivers: [
-                        // --- Header صورة غامرة ---
+                        // --- Header ---
                         SliverAppBar(
                           expandedHeight: 320.0,
                           pinned: true,
@@ -85,19 +105,17 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                           ),
                         ),
 
-                        // --- تفاصيل الخدمة ---
+                        // --- التفاصيل ---
                         SliverToBoxAdapter(
                           child: Container(
                             decoration: const BoxDecoration(
                               color: Color(0xFFF8F9FA),
                               borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
                             ),
-                            // تحريك الكونتينر للأعلى قليلاً فوق الصورة
                             transform: Matrix4.translationValues(0.0, -20.0, 0.0),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // مقبض صغير جمالي
                                 Center(
                                   child: Container(
                                     margin: const EdgeInsets.only(top: 12, bottom: 20),
@@ -156,24 +174,34 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
 
                                       const SizedBox(height: 24),
 
-                                      // نبذة عن الخدمة
+                                      // نبذة عن الخدمة (هنا التعديل السحري 🔥)
                                       const Text(
                                         "نبذة عن الخدمة",
                                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                                       ),
                                       const SizedBox(height: 8),
-                                      Text(
-                                        service.description ?? "لا يوجد وصف متاح لهذه الخدمة حالياً.",
+
+                                      // ✅ 3. استبدال Text بـ Linkify
+                                      SelectableLinkify( // استخدمنا Selectable لكي يستطيع المستخدم نسخ النص أيضاً
+                                        onOpen: _onOpenLink,
+                                        text: service.description ?? "لا يوجد وصف متاح لهذه الخدمة حالياً.",
                                         style: TextStyle(
                                           fontSize: 15,
                                           height: 1.6,
                                           color: Colors.grey[700],
+                                          fontFamily: 'YourFontFamily', // ضع خط التطبيق هنا لتوحيد الشكل
                                         ),
+                                        linkStyle: TextStyle(
+                                          color: AppColors.primary, // لون الروابط سيكون بلون تطبيقك
+                                          fontWeight: FontWeight.bold,
+                                          decoration: TextDecoration.underline, // خط تحت الرابط
+                                        ),
+                                        options: const LinkifyOptions(humanize: false),
                                       ),
 
                                       const SizedBox(height: 24),
 
-                                      // معلومات التواصل والموقع
+                                      // بيانات الاتصال
                                       const Text(
                                         "بيانات الاتصال",
                                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -201,7 +229,6 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                                           }
                                       ),
 
-                                      // مسافة فارغة في الأسفل لعدم تغطية المحتوى بالزر العائم
                                       const SizedBox(height: 100),
                                     ],
                                   ),
@@ -213,7 +240,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                       ],
                     ),
 
-                    // 2. الشريط السفلي الثابت (Call to Action)
+                    // الشريط السفلي (كما هو)
                     Positioned(
                       bottom: 0,
                       left: 0,
@@ -233,7 +260,6 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                         ),
                         child: Row(
                           children: [
-                            // زر الاتصال (الأساسي)
                             Expanded(
                               flex: 2,
                               child: ElevatedButton.icon(
@@ -256,7 +282,6 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                               ),
                             ),
                             const SizedBox(width: 12),
-                            // زر الموقع (الثانوي)
                             Expanded(
                               flex: 1,
                               child: OutlinedButton(
@@ -291,7 +316,8 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
     );
   }
 
-  // --- Widget: Carousel Images ---
+  // --- Widgets (Carousel & InfoCard & Gallery) بقيت كما هي ---
+  // ... (نفس الكود الخاص بالصور والبطاقات في الأسفل)
   Widget _buildImageCarousel(List<String> images, int serviceId) {
     if (images.isEmpty) {
       return Container(color: Colors.grey[300], child: const Center(child: Icon(Icons.image, size: 50, color: Colors.grey)));

@@ -46,27 +46,35 @@ class NotificationService {
   ];
 
   /// --- تهيئة الإشعارات ---
+  /// --- تهيئة الإشعارات ---
   static Future<void> init() async {
     tz.initializeTimeZones();
-    // ضبط التوقيت المحلي لدمشق
     try {
       tz.setLocalLocation(tz.getLocation('Asia/Damascus'));
     } catch (e) {
       print("Could not set location to Damascus, using default local.");
     }
 
-    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher'); // تأكد من وجود الأيقونة
-    // const iosInit = DarwinInitializationSettings(); // إذا كنت ستدعم iOS لاحقاً
-
+    // إعدادات أندرويد
+    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
     const initSettings = InitializationSettings(android: androidInit);
 
+    // تهيئة البلاجن
     await _notifications.initialize(
       initSettings,
       onDidReceiveNotificationResponse: (details) {
-        // هنا يمكنك التعامل مع النقر على الإشعار (مثلاً فتح صفحة معينة)
         print("Clicked Payload: ${details.payload}");
+        // هنا يمكنك إضافة توجيه لصفحة العروض مثلاً
       },
     );
+
+    // 🔥 خطوة حاسمة: طلب الإذن من المستخدم (للأندرويد 13+)
+    final androidImplementation = _notifications.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+
+    if (androidImplementation != null) {
+      await androidImplementation.requestNotificationsPermission();
+    }
 
     print('✅ NotificationService Initialized Successfully');
   }
@@ -115,20 +123,25 @@ class NotificationService {
   }
 
   /// --- جدولة المهمة الدورية (Workmanager) ---
+  /// --- جدولة المهمة الدورية (Workmanager) ---
   static Future<void> scheduleDailyTask() async {
-    await Workmanager().cancelAll(); // تنظيف المهام القديمة لمنع التضارب
+    // إلغاء المهام القديمة لتجنب التكرار عند إعادة فتح التطبيق
+    await Workmanager().cancelAll();
 
-    // تسجيل مهمة دورية تعمل كل 24 ساعة
     await Workmanager().registerPeriodicTask(
       "unique_daily_marketing_task",
       "marketingTask",
-      frequency: const Duration(hours: 24),
-      initialDelay: const Duration(hours: 12), // اختياري: لتبدأ في وقت محدد تقريباً
+      frequency: const Duration(hours: 24), // تكرار كل 24 ساعة
+      // initialDelay: const Duration(seconds: 10), // 🔥 ألغِ هذا السطر عند الرفع للمتجر، وفعله للتجربة فقط
       constraints: Constraints(
-        networkType: NetworkType.not_required, // يعمل حتى بدون نت (الإشعار محلي)
-        requiresBatteryNotLow: false,
+        networkType: NetworkType.not_required, // يعمل بدون نت
+        requiresBatteryNotLow: false, // يعمل حتى لو البطارية منخفضة
+        requiresDeviceIdle: false,
+        requiresCharging: false,
       ),
-      existingWorkPolicy: ExistingWorkPolicy.keep, // الحفاظ على الجدول الزمني
+      existingWorkPolicy: ExistingWorkPolicy.update, // تحديث المهمة بدلاً من الاحتفاظ بالقديمة
+      backoffPolicy: BackoffPolicy.linear,
+      backoffPolicyDelay: const Duration(minutes: 15), // في حال الفشل يعيد المحاولة بعد 15 دقيقة
     );
     print('📅 Daily Marketing Task Scheduled');
   }
