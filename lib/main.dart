@@ -31,15 +31,23 @@ void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
     print("⚙️ Background Task Started: $task");
 
-    // تهيئة الإشعارات داخل الخلفية لأن الـ main thread قد يكون مغلقاً
-    await NotificationService.init();
+    // 1. ضروري جداً لعمل البلاجنز في الخلفية
+    WidgetsFlutterBinding.ensureInitialized();
 
-    if (task == "marketingTask") {
-      // إرسال الإشعار العشوائي
-      await NotificationService.sendRandomMarketingNotification();
+    try {
+      // 2. نهيئ الإشعارات بوضع الخلفية (بدون طلب إذن)
+      await NotificationService.init(isBackground: true);
+
+      if (task == "marketingTask") {
+        print("🚀 Executing Marketing Logic...");
+        await NotificationService.sendRandomMarketingNotification();
+      }
+    } catch (e) {
+      print("❌ Error in background task: $e");
+      return Future.value(false); // فشل المهمة
     }
 
-    return Future.value(true);
+    return Future.value(true); // نجاح المهمة
   });
 }
 
@@ -53,11 +61,11 @@ void main() async {
   // 🔥 اجعل isInDebugMode: true لترى الإشعارات فوراً أثناء التجربة، ثم اجعلها false عند الرفع
   await Workmanager().initialize(
     callbackDispatcher,
-    isInDebugMode: true,
+    isInDebugMode: false,
   );
 
   // 3. تهيئة الإشعارات (هنا يتم طلب الإذن عند فتح التطبيق)
-  await NotificationService.init();
+  await NotificationService.init(isBackground: false);
 
   // 4. جدولة المهمة
   await NotificationService.scheduleDailyTask();

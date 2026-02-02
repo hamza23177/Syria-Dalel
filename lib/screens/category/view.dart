@@ -55,6 +55,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> with AutomaticKeepA
   List<Category> allCategories = [];
   List<Category> displayedCategories = [];
 
+  bool _isFiltering = false;
+
   // Scroll Controller to handle shrink/expand effects if needed
   final ScrollController _scrollController = ScrollController();
 
@@ -85,7 +87,18 @@ class _CategoriesScreenState extends State<CategoriesScreen> with AutomaticKeepA
     }
   }
 
-  void applyFilter() {
+  // 2. دالة الفلترة المحسنة (مع تأثير التحميل)
+  Future<void> _filterCategoriesWithEffect() async {
+    setState(() {
+      _isFiltering = true; // تفعيل الشيمر
+    });
+
+    // تأخير بسيط جداً (مثلاً 600 ميلي ثانية) للسماح للعين برؤية الشيمر
+    // هذا يعطي انطباعاً بالفخامة والمعالجة
+    await Future.delayed(const Duration(milliseconds: 600));
+
+    if (!mounted) return;
+
     setState(() {
       if (selectedGovernorate == null || selectedArea == null) {
         displayedCategories = List.from(allCategories);
@@ -96,7 +109,21 @@ class _CategoriesScreenState extends State<CategoriesScreen> with AutomaticKeepA
           return gMatch && aMatch;
         }).toList();
       }
+      _isFiltering = false; // إخفاء الشيمر وإظهار النتائج
     });
+  }
+
+  // دالة الفلترة العادية (بدون أنيميشن) للاستخدام عند التحميل الأولي
+  void _initialFilter() {
+    if (selectedGovernorate == null || selectedArea == null) {
+      displayedCategories = List.from(allCategories);
+    } else {
+      displayedCategories = allCategories.where((cat) {
+        final gMatch = cat.area.governorate.name == selectedGovernorate;
+        final aMatch = cat.area.name == selectedArea;
+        return gMatch && aMatch;
+      }).toList();
+    }
   }
 
   @override
@@ -166,11 +193,12 @@ class _CategoriesScreenState extends State<CategoriesScreen> with AutomaticKeepA
                     if (allCategories != state.response.data) {
                       setState(() {
                         allCategories = state.response.data;
-                        applyFilter();
+                        _initialFilter();
                       });
                     }
                   });
                 }
+                bool shouldShowLoading = (state is CategoryLoading && allCategories.isEmpty) || _isFiltering;
 
                 return NotificationListener<ScrollNotification>(
                   onNotification: (scrollInfo) {
@@ -263,9 +291,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> with AutomaticKeepA
                         ),
 
                       // --- 5. شبكة الأقسام (الخدمات) ---
-                      if (state is CategoryLoading && allCategories.isEmpty)
+                      if (shouldShowLoading)
                         SliverPadding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
                           sliver: SliverToBoxAdapter(child: _buildLoadingShimmerGrid()),
                         )
                       else if (state is CategoryError && allCategories.isEmpty)
@@ -293,7 +321,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with AutomaticKeepA
                             sliver: SliverGrid(
                               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 2,
-                                childAspectRatio: 0.8, // نسبة أطول قليلاً لجمالية الكرت
+                                childAspectRatio: 0.8,
                                 crossAxisSpacing: 16,
                                 mainAxisSpacing: 16,
                               ),
@@ -388,12 +416,11 @@ class _CategoriesScreenState extends State<CategoriesScreen> with AutomaticKeepA
 
   // 2. الفلتر الزجاجي (Glassmorphism)
   Widget _buildGlassyFilters(BuildContext context) {
-    // نستخدم ClipRRect مع BackdropFilter لعمل تأثير ضبابي للخلفية أثناء السكرول
     return ClipRRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
-          color: const Color(0xFFF6F8FB).withOpacity(0.85), // شفافية لظهور البلور
+          color: const Color(0xFFF6F8FB).withOpacity(0.85),
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
           alignment: Alignment.center,
           child: Row(
@@ -408,13 +435,14 @@ class _CategoriesScreenState extends State<CategoriesScreen> with AutomaticKeepA
                       items: govs.map((g) => g.name).toList(),
                       icon: Icons.map_rounded,
                       onChanged: (val) async {
-                        setState(() {
-                          selectedGovernorate = val;
-                          selectedArea = null;
-                        });
+                        // تحديث القيم وحفظها ثم استدعاء الفلتر بالأنيميشن
+                        selectedGovernorate = val;
+                        selectedArea = null; // تصفير المنطقة
                         await PreferencesService.saveLocation(
-                            governorate: selectedGovernorate!, area: selectedArea ?? '');
-                        applyFilter();
+                            governorate: selectedGovernorate!, area: '');
+
+                        // استدعاء الفلترة مع التأثير
+                        _filterCategoriesWithEffect();
                       },
                     );
                   },
@@ -437,10 +465,12 @@ class _CategoriesScreenState extends State<CategoriesScreen> with AutomaticKeepA
                       items: areas.map((a) => a.name).toList(),
                       icon: Icons.location_on_rounded,
                       onChanged: (val) async {
-                        setState(() => selectedArea = val);
+                        selectedArea = val;
                         await PreferencesService.saveLocation(
                             governorate: selectedGovernorate ?? '', area: selectedArea!);
-                        applyFilter();
+
+                        // استدعاء الفلترة مع التأثير
+                        _filterCategoriesWithEffect();
                       },
                     );
                   },
@@ -532,7 +562,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with AutomaticKeepA
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
       ),
-      itemCount: 6,
+      itemCount: 6, // عدد الكروت الوهمية
       itemBuilder: (_, __) => Shimmer.fromColors(
         baseColor: Colors.grey[300]!,
         highlightColor: Colors.grey[100]!,
@@ -540,6 +570,35 @@ class _CategoriesScreenState extends State<CategoriesScreen> with AutomaticKeepA
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(24),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                flex: 7,
+                child: Container(
+                  margin: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+              ),
+              Expanded(
+                flex: 4,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(height: 14, width: 80, color: Colors.white),
+                      const SizedBox(height: 8),
+                      Container(height: 10, width: 50, color: Colors.white),
+                    ],
+                  ),
+                ),
+              )
+            ],
           ),
         ),
       ),

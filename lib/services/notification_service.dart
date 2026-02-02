@@ -4,6 +4,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:workmanager/workmanager.dart';
+import 'package:flutter/foundation.dart';
 
 class NotificationService {
   // Singleton Pattern
@@ -47,36 +48,38 @@ class NotificationService {
 
   /// --- تهيئة الإشعارات ---
   /// --- تهيئة الإشعارات ---
-  static Future<void> init() async {
+  static Future<void> init({bool isBackground = false}) async {
     tz.initializeTimeZones();
     try {
       tz.setLocalLocation(tz.getLocation('Asia/Damascus'));
     } catch (e) {
-      print("Could not set location to Damascus, using default local.");
+      print("Could not set location, using default.");
     }
 
-    // إعدادات أندرويد
+    // إعداد أيقونة التطبيق (تأكد أن الاسم مطابق للموجود في android/app/src/main/res/drawable)
+    // يفضل استخدام أيقونة شفافة صغيرة للإشعارات باسم 'notification_icon'
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+
     const initSettings = InitializationSettings(android: androidInit);
 
-    // تهيئة البلاجن
     await _notifications.initialize(
       initSettings,
       onDidReceiveNotificationResponse: (details) {
-        print("Clicked Payload: ${details.payload}");
-        // هنا يمكنك إضافة توجيه لصفحة العروض مثلاً
+        // هذا الكود يعمل فقط عندما يكون التطبيق مفتوحاً أو عند الضغط على الإشعار
+        print("🔔 Clicked Payload: ${details.payload}");
+        // سنعالج التوجيه في main.dart
       },
     );
 
-    // 🔥 خطوة حاسمة: طلب الإذن من المستخدم (للأندرويد 13+)
-    final androidImplementation = _notifications.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+    // 🔥 التعديل الجوهري: نطلب الإذن فقط إذا لم نكن في الخلفية
+    if (!isBackground) {
+      final androidImplementation = _notifications.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
 
-    if (androidImplementation != null) {
-      await androidImplementation.requestNotificationsPermission();
+      if (androidImplementation != null) {
+        await androidImplementation.requestNotificationsPermission();
+      }
     }
-
-    print('✅ NotificationService Initialized Successfully');
   }
 
   /// --- إظهار إشعار فوري ---
@@ -86,22 +89,27 @@ class NotificationService {
     String? payload,
   }) async {
     final androidDetails = AndroidNotificationDetails(
-      'daily_channel_id',
-      'إشعارات دليل سوريا اليومية',
-      channelDescription: 'قناة مخصصة للنصائح والعروض اليومية',
+      'syria_guide_daily_channel', // ID ثابت للقناة
+      'عروض وتنبيهات دليل سوريا', // اسم ظاهر للمستخدم
+      channelDescription: 'إشعارات يومية تهمك',
       importance: Importance.max,
       priority: Priority.high,
+      ticker: 'تنبيه من دليل سوريا',
+      styleInformation: BigTextStyleInformation(
+          body,
+          htmlFormatBigText: true,
+          contentTitle: title,
+          htmlFormatContentTitle: true
+      ),
+      color: const Color(0xffF57752),
+      // إضافة صوت مخصص إذا رغبت (اختياري)
       playSound: true,
-      enableVibration: true,
-      styleInformation: BigTextStyleInformation(body, htmlFormatBigText: true),
-      color: const Color(0xffF57752), // لون التطبيق الأساسي
     );
 
     final details = NotificationDetails(android: androidDetails);
 
-    // نستخدم Random ID لكي لا يستبدل الإشعار القديم إذا لم يقرأه المستخدم
     await _notifications.show(
-      Random().nextInt(100000),
+      Random().nextInt(100000), // ID عشوائي
       title,
       body,
       details,
@@ -122,27 +130,23 @@ class NotificationService {
     );
   }
 
-  /// --- جدولة المهمة الدورية (Workmanager) ---
-  /// --- جدولة المهمة الدورية (Workmanager) ---
+  /// --- جدولة المهمة ---
   static Future<void> scheduleDailyTask() async {
-    // إلغاء المهام القديمة لتجنب التكرار عند إعادة فتح التطبيق
-    await Workmanager().cancelAll();
+    await Workmanager().cancelAll(); // تنظيف القديم
 
     await Workmanager().registerPeriodicTask(
-      "unique_daily_marketing_task",
+      "syria_guide_marketing_task_v1", // غيرنا الاسم لضمان تحديث المهمة عند المستخدمين
       "marketingTask",
-      frequency: const Duration(hours: 24), // تكرار كل 24 ساعة
-      // initialDelay: const Duration(seconds: 10), // 🔥 ألغِ هذا السطر عند الرفع للمتجر، وفعله للتجربة فقط
+      frequency: const Duration(hours: 24),
+      // frequency: const Duration(minutes: 15), // 🧪 للتجربة فقط (أقل مدة مسموحة 15 دقيقة)
       constraints: Constraints(
-        networkType: NetworkType.not_required, // يعمل بدون نت
-        requiresBatteryNotLow: false, // يعمل حتى لو البطارية منخفضة
-        requiresDeviceIdle: false,
+        networkType: NetworkType.not_required,
+        requiresBatteryNotLow: false,
         requiresCharging: false,
+        requiresDeviceIdle: false,
       ),
-      existingWorkPolicy: ExistingWorkPolicy.update, // تحديث المهمة بدلاً من الاحتفاظ بالقديمة
-      backoffPolicy: BackoffPolicy.linear,
-      backoffPolicyDelay: const Duration(minutes: 15), // في حال الفشل يعيد المحاولة بعد 15 دقيقة
+      existingWorkPolicy: ExistingWorkPolicy.update,
     );
-    print('📅 Daily Marketing Task Scheduled');
+    print('📅 تم جدولة المهمة الدورية بنجاح');
   }
 }
