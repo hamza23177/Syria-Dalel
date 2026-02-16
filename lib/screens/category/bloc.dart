@@ -8,10 +8,9 @@ import 'state.dart';
 
 class CategoryBloc extends Bloc<CategoryEvent, CategoryState> {
   final CategoryService service;
-  int currentPage = 1;
-  bool isLoading = false;
-  bool hasMore = true;
-  List<Category> _categories = [];
+
+  // سنحفظ البيانات هنا لضمان عدم ضياعها
+  List<Category> _allCategories = [];
 
   CategoryBloc(this.service) : super(CategoryInitial()) {
     on<FetchCategories>(_onFetchCategories);
@@ -21,102 +20,80 @@ class CategoryBloc extends Bloc<CategoryEvent, CategoryState> {
       FetchCategories event,
       Emitter<CategoryState> emit,
       ) async {
-    if (isLoading || !hasMore) return;
-    isLoading = true;
 
-    final connectivityResult = await Connectivity().checkConnectivity();
-    // إصلاح: التعامل مع جميع أنواع الاتصال
-    bool isConnected = connectivityResult != ConnectivityResult.none;
-
-    // حالة التحميل الأولية
-    if (currentPage == 1 && _categories.isEmpty) {
-      emit(CategoryLoading());
-    }
-
-    // --- سيناريو عدم الاتصال (Offline) ---
-    if (!isConnected) {
-      try {
-        final cached = await CategoryCacheService.getCachedCategories();
-        if (cached != null && cached.data.isNotEmpty) {
-          if (currentPage == 1) {
-            _categories = List.from(cached.data); // نسخ القائمة
-          }
-          emit(CategoryLoaded(
-            CategoryResponse(
-              data: List.from(_categories),
-              links: Links(),
-              meta: Meta.empty(),
-            ),
-            isLoadingMore: false,
-            isOffline: true,
-          ));
-        } else {
-          emit(CategoryError("لا يوجد اتصال بالإنترنت ولا توجد بيانات محفوظة"));
-        }
-      } catch (e) {
-        emit(CategoryError("خطأ في استرجاع البيانات المحفوظة"));
-      }
-      isLoading = false;
+    // 1️⃣ خطوة استباقية: إذا كان لدينا بيانات والطلب ليس "تحديث قسري"، نعرض الموجود
+    if (_allCategories.isNotEmpty && !event.forceRefresh) {
+      emit(CategoryLoaded(
+        CategoryResponse(data: _allCategories, links: Links(), meta: Meta.empty()),
+        isLoadingMore: false,
+        isOffline: false,
+      ));
       return;
     }
 
-    // --- سيناريو الاتصال (Online) ---
-    try {
-      // إرسال حالة تحميل للصفحات التالية دون حذف البيانات القديمة
-      if (currentPage > 1) {
+    emit(CategoryLoading());
+
+    // 2️⃣ استراتيجية "الكاش أولاً" (Cache-First Strategy)
+    // نعرض الكاش للمستخدم فوراً حتى لا ينتظر، ثم نذهب للإنترنت
+    if (!event.forceRefresh) {
+      final cached = await CategoryCacheService.getCachedCategories();
+      if (cached != null && cached.data.isNotEmpty) {
+        _allCategories = cached.data;
         emit(CategoryLoaded(
-          CategoryResponse(
-              data: List.from(_categories),
-              links: Links(),
-              meta: Meta.empty()),
-          isLoadingMore: true,
-          isOffline: false,
+            cached,
+            isLoadingMore: false,
+            isOffline: true // نضع علامة أنه أوفلاين مؤقتاً
         ));
       }
+    }
 
-      final response = await service.fetchCategories(page: currentPage);
-
-      // دمج البيانات الجديدة مع منع التكرار (Best Practice)
-      if (response.data.isEmpty) {
-        hasMore = false;
+    // 3️⃣ التحقق من الاتصال
+    final connectivityResult = await Connectivity().checkConnectivity();
+    if (connectivityResult == ConnectivityResult.none) {
+      if (_allCategories.isNotEmpty) {
+        // إذا كان لدينا كاش، نبقيه كما هو ولكن نعلم الواجهة
+        emit(CategoryLoaded(
+            CategoryResponse(data: _allCategories, links: Links(), meta: Meta.empty()),
+            isOffline: true
+        ));
       } else {
-        final existingIds = _categories.map((e) => e.id).toSet();
-        final newUniqueCategories = response.data
-            .where((item) => !existingIds.contains(item.id))
-            .toList();
-
-        _categories.addAll(newUniqueCategories);
-
-        // حفظ الصفحة الأولى فقط في الكاش لضمان السرعة عند الفتح القادم
-        if (currentPage == 1) {
-          await CategoryCacheService.saveCategories(response);
-        }
-        currentPage++;
+        emit(CategoryError("تأكد من اتصالك بالإنترنت"));
       }
+      return;
+    }
+
+    // 4️⃣ جلب البيانات الحديثة (Full Sync)
+    try {
+      // 🔥 نطلب 1000 عنصر لضمان وصول كل الأقسام للفلترة
+      final response = await service.fetchCategories(page: 1, perPage: 1000);
+
+      // تحديث القائمة المحلية
+      _allCategories = response.data;
+
+      // حفظ في الكاش للمرة القادمة
+      await CategoryCacheService.saveCategories(response);
 
       emit(CategoryLoaded(
         CategoryResponse(
-          data: List.from(_categories),
+          data: List.from(_allCategories),
           links: response.links ?? Links(),
           meta: response.meta ?? Meta.empty(),
         ),
         isLoadingMore: false,
-        isOffline: false,
+        isOffline: false, // الآن نحن أونلاين ومحدثين
       ));
 
     } catch (e) {
-      // Fallback: العودة للكاش في حال فشل الـ API
-      if (_categories.isNotEmpty) {
+      // في حال فشل السيرفر، هل لدينا كاش قديم؟
+      if (_allCategories.isNotEmpty) {
+        // نبقي القديم مع إشعار خطأ صامت (أو سناك بار في الواجهة)
         emit(CategoryLoaded(
-            CategoryResponse(data: List.from(_categories), links: Links(), meta: Meta.empty()),
-            isLoadingMore: false,
-            isOffline: true // نعتبرها أوفلاين لأن الطلب فشل
+            CategoryResponse(data: _allCategories, links: Links(), meta: Meta.empty()),
+            isOffline: true // نعتبره أوفلاين لأن التحديث فشل
         ));
       } else {
-        emit(CategoryError("حدث خطأ في الاتصال: $e"));
+        emit(CategoryError(e.toString().replaceAll("Exception: ", "")));
       }
-    } finally {
-      isLoading = false;
     }
   }
 }

@@ -5,4 +5,11 @@ abstract class CategoryEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-class FetchCategories extends CategoryEvent {}
+class FetchCategories extends CategoryEvent {
+  final bool forceRefresh; // 🔹 هل المستخدم سحب للشاشة للتحديث؟
+
+  FetchCategories({this.forceRefresh = false});
+
+  @override
+  List<Object?> get props => [forceRefresh];
+}

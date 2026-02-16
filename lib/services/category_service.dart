@@ -4,21 +4,37 @@ import '../models/category_model.dart';
 import '../constant.dart';
 
 class CategoryService {
-  final Dio dio = Dio(BaseOptions(baseUrl: ApiConstants.baseUrl));
+  final Dio dio = Dio(BaseOptions(
+    baseUrl: ApiConstants.baseUrl,
+    connectTimeout: const Duration(seconds: 10), // مهم جداً
+    receiveTimeout: const Duration(seconds: 10),
+  ));
 
-  Future<CategoryResponse> fetchCategories({required int page, int perPage = 10}) async {
-    // 🟢 جرب جلب الكاش أولاً
-    if (page == 1) {
-      final cached = await CategoryCacheService.getCachedCategories();
-      if (cached != null && cached.data.isNotEmpty) {
-        // ✅ ارجع الكاش بسرعة قبل انتظار الإنترنت
-        _updateInBackground(page, perPage);
-        return cached;
+  Future<CategoryResponse> fetchCategories({int page = 1, int perPage = 1000}) async {
+    try {
+      final response = await dio.get(
+        '/user/categories',
+        queryParameters: {
+          'page': page,
+          'perPage': perPage, // 🔥 السحر هنا: نطلب كل شيء
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return CategoryResponse.fromJson(response.data);
+      } else {
+        throw Exception("فشل تحميل البيانات: ${response.statusCode}");
       }
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.connectionError) {
+        throw Exception("لا يوجد اتصال بالإنترنت");
+      }
+      throw Exception("خطأ في الاتصال بالخادم");
+    } catch (e) {
+      throw Exception("حدث خطأ غير متوقع: $e");
     }
-
-    // 🟡 إذا لا يوجد كاش، نفذ الطلب عادي
-    return await _fetchFromNetwork(page, perPage);
   }
 
   Future<void> _updateInBackground(int page, int perPage) async {

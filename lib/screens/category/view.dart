@@ -7,10 +7,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
+
 // Imports
 import '../../models/area_model.dart';
 import '../../models/governorate_model.dart';
 import '../../models/category_model.dart';
+import '../../models/service_model.dart';
 import '../../services/area_service.dart';
 import '../../services/governorate_service.dart';
 import '../../services/category_service.dart';
@@ -29,6 +31,9 @@ import '../contact/view.dart';
 import '../governorate/bloc.dart';
 import '../governorate/event.dart';
 import '../governorate/state.dart';
+import '../prod/bloc.dart';
+import '../prod/event.dart';
+import '../prod/state.dart';
 import 'bloc.dart';
 import 'event.dart';
 import 'state.dart';
@@ -56,6 +61,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with AutomaticKeepA
   List<Category> displayedCategories = [];
 
   bool _isFiltering = false;
+  bool _isServicesLoadingMore = false;
 
   // Scroll Controller to handle shrink/expand effects if needed
   final ScrollController _scrollController = ScrollController();
@@ -138,6 +144,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> with AutomaticKeepA
           BlocProvider(create: (_) => GovernorateBloc(GovernorateService())..add(LoadGovernorates())),
           BlocProvider(create: (_) => AreaBloc(AreaService())..add(LoadAreas())),
           BlocProvider(create: (_) => AdBloc(AdRepository(api: AdService(), cache: AdCache()))..add(FetchAdsEvent())),
+          BlocProvider(create: (_) => ServiceBloc(ServiceRepository(ServiceApi()))
+            ..add(FetchServices(subCategoryId: null))),
         ],
         child: Scaffold(
           // لون خلفية عصري جداً (Off-white) يبرز البطاقات البيضاء
@@ -161,189 +169,242 @@ class _CategoriesScreenState extends State<CategoriesScreen> with AutomaticKeepA
 
           body: SafeArea(
             bottom: false,
-            child: BlocConsumer<CategoryBloc, CategoryState>(
-              listener: (context, state) {
-                if (state is CategoryLoaded && state.isOffline) {
-                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Row(
-                        children: const [
-                          Icon(Icons.wifi_off_rounded, color: Colors.white, size: 20),
-                          SizedBox(width: 12),
-                          Text(" وضع التصفح دون اتصال بالانترنيت", style: TextStyle(fontFamily: 'Cairo')), // تأكد من وجود خط جميل
-                        ],
-                      ),
-                      backgroundColor: const Color(0xFF323232),
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      margin: const EdgeInsets.all(16),
-                    ),
-                  );
-                }
-                if (state is CategoryError) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(state.message), backgroundColor: Colors.redAccent),
-                  );
-                }
-              },
-              builder: (context, state) {
-                if (state is CategoryLoaded) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (allCategories != state.response.data) {
-                      setState(() {
-                        allCategories = state.response.data;
-                        _initialFilter();
+            child: Builder(
+              builder: (context) {
+                return BlocConsumer<CategoryBloc, CategoryState>(
+                  listener: (context, state) {
+                    if (state is CategoryLoaded && state.isOffline) {
+                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Row(
+                            children: const [
+                              Icon(Icons.wifi_off_rounded, color: Colors.white, size: 20),
+                              SizedBox(width: 12),
+                              Text(" وضع التصفح دون اتصال بالانترنيت", style: TextStyle(fontFamily: 'Cairo')), // تأكد من وجود خط جميل
+                            ],
+                          ),
+                          backgroundColor: const Color(0xFF323232),
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          margin: const EdgeInsets.all(16),
+                        ),
+                      );
+                    }
+                    if (state is CategoryError) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(state.message), backgroundColor: Colors.redAccent),
+                      );
+                    }
+                  },
+                  builder: (context, state) {
+                    if (state is CategoryLoaded) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (allCategories != state.response.data) {
+                          setState(() {
+                            allCategories = state.response.data;
+                            _initialFilter();
+                          });
+                        }
                       });
                     }
-                  });
-                }
-                bool shouldShowLoading = (state is CategoryLoading && allCategories.isEmpty) || _isFiltering;
+                    bool shouldShowLoading = (state is CategoryLoading && allCategories.isEmpty) || _isFiltering;
 
-                return NotificationListener<ScrollNotification>(
-                  onNotification: (scrollInfo) {
-                    if (state is CategoryLoaded && !state.isLoadingMore) {
-                      if (scrollInfo.metrics.pixels >= scrollInfo.metrics.maxScrollExtent - 200) {
-                        context.read<CategoryBloc>().add(FetchCategories());
-                      }
-                    }
-                    return false;
-                  },
-                  child: CustomScrollView(
-                    controller: _scrollController,
-                    physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-                    slivers: [
-                      // --- 1. هيدر البحث المتطور ---
-                      // --- 1. الهيدر الاحترافي (Facebook/WhatsApp Style) ---
-                      SliverAppBar(
-                        pinned: true,
-                        floating: true,
-                        snap: true,
-                        backgroundColor: Colors.white, // خلفية بيضاء نقية
-                        surfaceTintColor: Colors.white, // لمنع تغير اللون عند السكرول في أندرويد الحديث
-                        elevation: 0, // إلغاء الظل ليبدو مسطحاً وعصرياً
-                        expandedHeight: 120, // ارتفاع يسمح بوجود العنوان وشريط البحث
-                        toolbarHeight: 60,
+                    return NotificationListener<ScrollNotification>(
+                      onNotification: (scrollInfo) {
+                        // لوجيك الباجينشن المزدوج (للخدمات)
+                        if (scrollInfo.metrics.pixels >= scrollInfo.metrics.maxScrollExtent - 200) {
+                          // استدعاء باجينشن الخدمات
+                          final serviceBloc = context.read<ServiceBloc>();
+                          if (serviceBloc.state is ServiceLoaded && !(serviceBloc.state as ServiceLoaded).isLoadingMore) {
+                            serviceBloc.add(FetchServices(subCategoryId: null, loadMore: true));
+                          }
+                        }
+                        return false;
+                      },
+                      child: CustomScrollView(
+                        controller: _scrollController,
+                        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                        slivers: [
+                          // --- 1. هيدر البحث المتطور ---
+                          // --- 1. الهيدر الاحترافي (Facebook/WhatsApp Style) ---
+                          SliverAppBar(
+                            pinned: true,
+                            floating: true,
+                            snap: true,
+                            backgroundColor: Colors.white, // خلفية بيضاء نقية
+                            surfaceTintColor: Colors.white, // لمنع تغير اللون عند السكرول في أندرويد الحديث
+                            elevation: 0, // إلغاء الظل ليبدو مسطحاً وعصرياً
+                            expandedHeight: 120, // ارتفاع يسمح بوجود العنوان وشريط البحث
+                            toolbarHeight: 60,
 
-                        // العنوان (دليل سوريا) بلون البراند
-                        title: const Text(
-                          "دليل سوريا",
-                          style: TextStyle(
-                            color: AppColors.primary, // اللون البرتقالي
-                            fontWeight: FontWeight.w900, // خط عريض جداً وقوي
-                            fontSize: 26,
-                            fontFamily: 'Cairo', // تأكد من تناسق الخط
-                            letterSpacing: -0.5,
+                            // العنوان (دليل سوريا) بلون البراند
+                            title: const Text(
+                              "دليل سوريا",
+                              style: TextStyle(
+                                color: AppColors.primary, // اللون البرتقالي
+                                fontWeight: FontWeight.w900, // خط عريض جداً وقوي
+                                fontSize: 26,
+                                fontFamily: 'Cairo', // تأكد من تناسق الخط
+                                letterSpacing: -0.5,
+                              ),
+                            ),
+                            centerTitle: false, // العنوان على اليمين
+
+                            // شريط البحث يظهر في الأسفل كجزء من الهيدر
+                            bottom: PreferredSize(
+                              preferredSize: const Size.fromHeight(60),
+                              child: Padding(
+                                padding: const EdgeInsets.only(bottom: 12, left: 16, right: 16),
+                                child: _buildCleanSearchBar(context),
+                              ),
+                            ),
                           ),
-                        ),
-                        centerTitle: false, // العنوان على اليمين
 
-                        // شريط البحث يظهر في الأسفل كجزء من الهيدر
-                        bottom: PreferredSize(
-                          preferredSize: const Size.fromHeight(60),
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 12, left: 16, right: 16),
-                            child: _buildCleanSearchBar(context),
-                          ),
-                        ),
-                      ),
-
-                      // --- 2. سلايدر الإعلانات ---
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 20,
-                                  offset: const Offset(0, 10),
+                          // --- 2. سلايدر الإعلانات ---
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.05),
+                                      blurRadius: 20,
+                                      offset: const Offset(0, 10),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(20),
-                              child: const AdCarouselView(),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: const AdCarouselView(),
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
 
-                      // --- 3. الفلتر الذكي (Sticky Header) ---
-                      SliverPersistentHeader(
-                        pinned: true,
-                        delegate: _SliverFiltersDelegate(
-                          minHeight: 85.0, // زيادة الارتفاع
-                          maxHeight: 85.0,
-                          child: _buildGlassyFilters(context),
-                        ),
-                      ),
-
-                      // --- 4. تلميح الموقع التفاعلي ---
-                      if (selectedGovernorate == null || selectedArea == null)
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            child: const LocationSelectionHint(key: ValueKey('hint')),
+                          // --- 3. الفلتر الذكي (Sticky Header) ---
+                          SliverPersistentHeader(
+                            pinned: true,
+                            delegate: _SliverFiltersDelegate(
+                              minHeight: 85.0, // زيادة الارتفاع
+                              maxHeight: 85.0,
+                              child: _buildGlassyFilters(context),
+                            ),
                           ),
-                        ),
 
-                      // --- 5. شبكة الأقسام (الخدمات) ---
-                      if (shouldShowLoading)
-                        SliverPadding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                          sliver: SliverToBoxAdapter(child: _buildLoadingShimmerGrid()),
-                        )
-                      else if (state is CategoryError && allCategories.isEmpty)
-                        SliverFillRemaining(child: _buildErrorView(context, state.message))
-                      else if (displayedCategories.isEmpty)
-                          SliverFillRemaining(
-                            hasScrollBody: false,
-                            child: Center(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.search_off_rounded, size: 80, color: Colors.grey[300]),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    "لا توجد خدمات متاحة هنا حالياً",
-                                    style: TextStyle(fontSize: 16, color: Colors.grey[500], fontWeight: FontWeight.bold),
+                          // --- 4. تلميح الموقع التفاعلي ---
+                          if (selectedGovernorate == null || selectedArea == null)
+                            SliverToBoxAdapter(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                child: const LocationSelectionHint(key: ValueKey('hint')),
+                              ),
+                            ),
+
+                          // --- 5. شبكة الأقسام (الخدمات) ---
+                          if (shouldShowLoading)
+                            SliverPadding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                              sliver: SliverToBoxAdapter(child: _buildLoadingShimmerGrid()),
+                            )
+                          else if (state is CategoryError && allCategories.isEmpty)
+                            SliverFillRemaining(child: _buildErrorView(context, state.message))
+                          else if (displayedCategories.isEmpty)
+                              SliverFillRemaining(
+                                hasScrollBody: false,
+                                child: Center(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.search_off_rounded, size: 80, color: Colors.grey[300]),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        "لا توجد خدمات متاحة هنا حالياً",
+                                        style: TextStyle(fontSize: 16, color: Colors.grey[500], fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
                                   ),
+                                ),
+                              )
+                            else
+                              SliverPadding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                                sliver: SliverGrid(
+                                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 2,
+                                    childAspectRatio: 0.8,
+                                    crossAxisSpacing: 16,
+                                    mainAxisSpacing: 16,
+                                  ),
+                                  delegate: SliverChildBuilderDelegate(
+                                        (context, index) {
+                                      if (index < displayedCategories.length) {
+                                        return _buildPremiumCard(displayedCategories[index], index);
+                                      } else {
+                                        return const Center(child: CircularProgressIndicator());
+                                      }
+                                    },
+                                    childCount: displayedCategories.length +
+                                        ((state is CategoryLoaded && state.isLoadingMore) ? 1 : 0),
+                                  ),
+                                ),
+                              ),
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 30, 16, 16),
+                              child: Row(
+                                children: [
+                                  Container(width: 4, height: 24, decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(2))),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    "خدمات أضيفت حديثاً",
+                                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.black87),
+                                  ),
+                                  const Spacer(),
+                                  Text("تصفح الكل", style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 14)),
                                 ],
                               ),
                             ),
-                          )
-                        else
-                          SliverPadding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                            sliver: SliverGrid(
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                childAspectRatio: 0.8,
-                                crossAxisSpacing: 16,
-                                mainAxisSpacing: 16,
-                              ),
-                              delegate: SliverChildBuilderDelegate(
-                                    (context, index) {
-                                  if (index < displayedCategories.length) {
-                                    return _buildPremiumCard(displayedCategories[index], index);
-                                  } else {
-                                    return const Center(child: CircularProgressIndicator());
-                                  }
-                                },
-                                childCount: displayedCategories.length +
-                                    ((state is CategoryLoaded && state.isLoadingMore) ? 1 : 0),
-                              ),
-                            ),
                           ),
 
-                      const SliverPadding(padding: EdgeInsets.only(bottom: 80)),
-                    ],
-                  ),
+                          // --- 🔥 7. قائمة الخدمات (SliverList with BlocBuilder) ---
+                          BlocBuilder<ServiceBloc, ServiceState>(
+                            builder: (context, serviceState) {
+                              if (serviceState is ServiceLoading) {
+                                return SliverToBoxAdapter(child: _buildServiceShimmer());
+                              } else if (serviceState is ServiceLoaded) {
+                                if (serviceState.services.isEmpty) {
+                                  return SliverToBoxAdapter(child: _buildEmptyServicesCTA());
+                                }
+                                return SliverList(
+                                  delegate: SliverChildBuilderDelegate(
+                                        (context, index) {
+                                      if (index >= serviceState.services.length) {
+                                        return serviceState.isLoadingMore
+                                            ? const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()))
+                                            : const SizedBox();
+                                      }
+                                      return PremiumServiceCard(service: serviceState.services[index]);
+                                    },
+                                    childCount: serviceState.services.length + (serviceState.isLoadingMore ? 1 : 0),
+                                  ),
+                                );
+                              } else if (serviceState is ServiceError) {
+                                return SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.all(20), child: Text("حدث خطأ في تحميل الخدمات", textAlign: TextAlign.center)));
+                              }
+                              return const SliverToBoxAdapter(child: SizedBox());
+                            },
+                          ),
+
+                          const SliverPadding(padding: EdgeInsets.only(bottom: 80)),
+                        ],
+                      ),
+                    );
+                  },
                 );
-              },
+              }
             ),
           ),
         ),
@@ -352,6 +413,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with AutomaticKeepA
   }
 
   // --- UI Components ---
+  
 
   // 1. هيدر البحث الفخم
   Widget _buildModernSearchHeader(BuildContext context) {
@@ -695,6 +757,49 @@ class _CategoriesScreenState extends State<CategoriesScreen> with AutomaticKeepA
     );
   }
 
+  // شيمر للخدمات
+  Widget _buildServiceShimmer() {
+    return Column(
+      children: List.generate(3, (index) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Shimmer.fromColors(
+          baseColor: Colors.grey[300]!,
+          highlightColor: Colors.grey[100]!,
+          child: Container(height: 200, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20))),
+        ),
+      )),
+    );
+  }
+
+  // دعوة لإضافة خدمة (عندما تكون القائمة فارغة)
+  Widget _buildEmptyServicesCTA() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(30),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFC),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.add_business, size: 50, color: Colors.grey[400]),
+          const SizedBox(height: 16),
+          Text(
+            "كن أول من يضيف خدمته!",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey[800]),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "هناك آلاف الزوار بانتظار خدماتك، ابدأ الآن.",
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.grey[500]),
+          ),
+        ],
+      ),
+    );
+  }
+}
   Widget _buildErrorView(BuildContext context, String message) {
     return Center(
       child: Column(
@@ -728,7 +833,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> with AutomaticKeepA
       ),
     );
   }
-}
 
 // --- ويدجت الكرت التفاعلي (منفصلة لتحسين الأداء) ---
 class _InteractiveCard extends StatefulWidget {
@@ -968,6 +1072,163 @@ class _LocationSelectionHintState extends State<LocationSelectionHint> with Sing
                 Text("حدد منطقتك لعرض الخدمات!", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary)),
                 const SizedBox(height: 4),
                 Text("تصفح أفضل الخدمات القريبة منك الآن.", style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+}
+
+class PremiumServiceCard extends StatelessWidget {
+  final ServiceModel service;
+  const PremiumServiceCard({super.key, required this.service});
+
+  @override
+  Widget build(BuildContext context) {
+    // 1. تحديد الصورة الأساسية
+    final String displayImage = service.imageUrl ??
+        service.imageUrl2 ??
+        service.imageUrl3 ??
+        "";
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16, left: 16, right: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            offset: const Offset(0, 5),
+            blurRadius: 15,
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // 1. قسم الصورة (Header)
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                child: SizedBox(
+                  height: 180,
+                  width: double.infinity,
+                  child: CachedNetworkImage(
+                    imageUrl: displayImage.replaceFirst("http://", "https://"),
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) => Container(color: Colors.grey[100]),
+                    errorWidget: (_, __, ___) => Container(
+                        color: Colors.grey[50],
+                        child: Icon(Icons.broken_image, color: Colors.grey[300])
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 12,
+                left: 12,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(30),
+                    boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],
+                  ),
+                  child: Text(
+                    service.category,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          // 2. التفاصيل (Body)
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // --- بداية الـ Row الذي كان يسبب المشكلة ---
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        service.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    // المنطقة
+                    Row(
+                      children: [
+                        Icon(Icons.location_on, color: Colors.grey[400], size: 16),
+                        const SizedBox(width: 4),
+                        Text(
+                          service.area,
+                          style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ], // <--- ✅ تم إضافة هذا الإغلاق المفقود
+                ), // <--- ✅ تم إضافة هذا القوس المفقود
+                // --- نهاية الـ Row ---
+
+                const SizedBox(height: 8),
+
+                Text(
+                  service.description ?? "لا يوجد وصف متاح لهذه الخدمة...",
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600], height: 1.5),
+                ),
+                const SizedBox(height: 16),
+
+                // 3. أزرار التفاعل
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          // الانتقال للتفاصيل
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: const Text("عرض التفاصيل", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: IconButton(
+                        onPressed: () {
+                          // كود الاتصال
+                        },
+                        icon: const Icon(Icons.phone_in_talk_rounded, color: Colors.green),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
