@@ -100,7 +100,6 @@ class _AdCarouselViewState extends State<AdCarouselView> {
         );
       },
       child: Container(
-        // إزالة الهوامش الجانبية لأننا نستخدم ClipRRect في الـ Parent
         width: double.infinity,
         decoration: BoxDecoration(
           color: Colors.grey[200],
@@ -108,7 +107,7 @@ class _AdCarouselViewState extends State<AdCarouselView> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // 1. الصورة
+            // 1. الصورة الخلفية
             CachedNetworkImage(
               imageUrl: (ad.firstImageUrl ?? "").replaceFirst("http://", "https://"),
               fit: BoxFit.cover,
@@ -116,64 +115,149 @@ class _AdCarouselViewState extends State<AdCarouselView> {
               errorWidget: (context, url, error) => const Icon(Icons.broken_image, color: Colors.grey),
             ),
 
-            // 2. تدرج لوني
+            // 2. طبقة الظل التدريجي (لتحسين قراءة النصوص)
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
+                    Colors.black.withOpacity(0.1), // ظل خفيف جداً من الأعلى
                     Colors.transparent,
-                    Colors.black.withOpacity(0.7),
+                    Colors.black.withOpacity(0.8), // ظل قوي من الأسفل
                   ],
-                  stops: const [0.6, 1.0],
+                  stops: const [0.0, 0.5, 1.0],
                 ),
               ),
             ),
 
-            // 3. النصوص (مع حماية من Overflow)
+            // 3. 🔥 شارة "مـمـيـز" الاحترافية (Golden Badge)
+            Positioned(
+              top: 12,
+              left: 12, // وضعناها على اليسار لتكون مميزة (باعتبار التطبيق عربي RTL)
+              child: _buildPremiumBadge(),
+            ),
+
+            // 4. النصوص والتفاصيل
             Positioned(
               bottom: 12,
+              right: 12, // النصوص عربية (يمين)
               left: 12,
-              right: 12,
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          "اكتشف العروض",
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.9),
-                            fontSize: 12,
+                        // تصنيف الإعلان (اختياري)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withOpacity(0.9),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            "عرض خاص", // يمكن استبدالها بـ ad.categoryName
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        // 🔥 حماية النص من الخروج عن الحدود
+                        const SizedBox(height: 6),
+                        // العنوان الرئيسي
                         Text(
-                          "أقوى العروض الحصرية",
-                          maxLines: 1, // سطر واحد فقط
-                          overflow: TextOverflow.ellipsis, // وضع ... اذا النص طويل
+                          "أقوى العروض الحصرية", // استبدلها بـ ad.title
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 18, // تكبير الخط قليلاً
+                            fontWeight: FontWeight.w900, // خط سميك جداً للفخامة
+                            shadows: [
+                              Shadow(offset: Offset(0, 2), blurRadius: 4, color: Colors.black54),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  // الزر الصغير
+                  // زر "المزيد" (Call to Action)
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    height: 36,
+                    width: 36,
                     decoration: BoxDecoration(
-                      color: AppColors.primary,
+                      color: Colors.white, // لون أبيض ليتناقض مع الخلفية
                       shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 5, offset: Offset(0,2))
+                      ],
                     ),
-                    child: const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 14),
+                    child: Icon(Icons.arrow_forward_rounded, color: AppColors.primary, size: 20),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPremiumBadge() {
+    // نستخدم FadeInDown لجذب الانتباه عند ظهور الإعلان
+    return FadeInDown(
+      duration: const Duration(milliseconds: 600),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          // تدرج ذهبي فخم
+          gradient: const LinearGradient(
+            colors: [
+              Color(0xFFFFD700), // ذهبي فاقع
+              Color(0xFFFFA500), // برتقالي ذهبي
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(12),
+            bottomRight: Radius.circular(12),
+            topRight: Radius.circular(4),
+            bottomLeft: Radius.circular(4),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFFFA500).withOpacity(0.4),
+              blurRadius: 8,
+              offset: const Offset(0, 4), // ظل ليعطي بروزاً
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.stars_rounded, // أيقونة النجمة توحي بالتميز
+              color: Colors.white,
+              size: 14,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              "مُـمـيـز", // النص
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w900, // خط عريض
+                letterSpacing: 0.5, // تباعد أحرف خفيف
+                shadows: [
+                  Shadow(
+                    color: Colors.black.withOpacity(0.1),
+                    offset: const Offset(0, 1),
+                    blurRadius: 2,
                   ),
                 ],
               ),
