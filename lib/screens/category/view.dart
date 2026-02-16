@@ -415,6 +415,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with AutomaticKeepA
   }
 
   // 2. الفلتر الزجاجي (Glassmorphism)
+  // 2. الفلتر الزجاجي (Glassmorphism) - النسخة المصححة والمحسنة
   Widget _buildGlassyFilters(BuildContext context) {
     return ClipRRect(
       child: BackdropFilter(
@@ -425,23 +426,44 @@ class _CategoriesScreenState extends State<CategoriesScreen> with AutomaticKeepA
           alignment: Alignment.center,
           child: Row(
             children: [
+              // --- Governorate Dropdown ---
               Expanded(
                 child: BlocBuilder<GovernorateBloc, GovernorateState>(
                   builder: (context, state) {
-                    List<Governorate> govs = state is GovernorateLoaded ? state.governorates : [];
+                    List<String> govItems = [];
+                    if (state is GovernorateLoaded) {
+                      // نستخدم Set لمنع التكرار ثم نحولها لقائمة
+                      govItems = state.governorates
+                          .map((g) => g.name.trim()) // Trim لإزالة أي مسافات زائدة
+                          .toSet()
+                          .toList();
+                    }
+
+                    // التحقق: هل القيمة المحفوظة موجودة في القائمة الحالية؟
+                    // إذا كانت القائمة فارغة (تحميل)، نبقي القيمة كما هي لنمنع الوميض
+                    String? validatedGov = selectedGovernorate;
+                    if (govItems.isNotEmpty && selectedGovernorate != null) {
+                      if (!govItems.contains(selectedGovernorate)) {
+                        validatedGov = null;
+                      }
+                    }
+
                     return _buildPremiumDropdown(
                       hint: "المحافظة",
-                      value: selectedGovernorate,
-                      items: govs.map((g) => g.name).toList(),
+                      value: validatedGov,
+                      items: govItems,
                       icon: Icons.map_rounded,
                       onChanged: (val) async {
-                        // تحديث القيم وحفظها ثم استدعاء الفلتر بالأنيميشن
-                        selectedGovernorate = val;
-                        selectedArea = null; // تصفير المنطقة
-                        await PreferencesService.saveLocation(
-                            governorate: selectedGovernorate!, area: '');
+                        if (val == selectedGovernorate) return;
 
-                        // استدعاء الفلترة مع التأثير
+                        setState(() {
+                          selectedGovernorate = val;
+                          selectedArea = null; // تصفير المنطقة عند تغيير المحافظة إجباري
+                        });
+
+                        await PreferencesService.saveLocation(
+                            governorate: selectedGovernorate ?? '', area: '');
+
                         _filterCategoriesWithEffect();
                       },
                     );
@@ -449,27 +471,65 @@ class _CategoriesScreenState extends State<CategoriesScreen> with AutomaticKeepA
                 ),
               ),
               const SizedBox(width: 12),
+
+              // --- Area Dropdown (تم الإصلاح هنا) ---
               Expanded(
                 child: BlocBuilder<AreaBloc, AreaState>(
                   builder: (context, state) {
-                    List<Area> areas = [];
+                    List<String> areaItems = [];
+
                     if (state is AreaLoaded) {
-                      areas = state.areas.cast<Area>();
+                      var areas = state.areas;
+
+                      // فلترة المناطق بناءً على المحافظة المختارة
                       if (selectedGovernorate != null) {
-                        areas = areas.where((a) => a.governorate.name == selectedGovernorate).toList();
+                        areas = areas.where((a) => a.governorate.name.trim() == selectedGovernorate!.trim()).toList();
                       }
+
+                      // استخراج الأسماء وتنظيفها ومنع التكرار
+                      areaItems = areas
+                          .map((a) => a.name.trim())
+                          .where((name) => name.isNotEmpty)
+                          .toSet()
+                          .toList();
                     }
+
+                    // التحقق الذكي:
+                    // 1. إذا لم نقم باختيار محافظة بعد، لا تسمح باختيار منطقة
+                    if (selectedGovernorate == null) {
+                      areaItems = [];
+                    }
+
+                    // 2. التحقق من القيمة المختارة
+                    String? validatedArea = selectedArea;
+
+                    // إذا كانت القائمة تحتوي عناصر، والقيمة المختارة غير موجودة فيها، قم بتصفيرها
+                    // هذا يحل مشكلة الـ Exception ويسمح بالاختيار الصحيح
+                    if (areaItems.isNotEmpty && selectedArea != null) {
+                      if (!areaItems.contains(selectedArea)) {
+                        validatedArea = null;
+                        // ملاحظة: لا نستدعي setState هنا لتجنب infinite rebuilds
+                        // ولكن الـ Dropdown سيظهر كـ null بصرياً وهو الصحيح
+                      }
+                    } else if (areaItems.isEmpty && selectedGovernorate != null) {
+                      // إذا كانت القائمة فارغة (ربما لم تحمل بعد)، يفضل ترك القيمة null
+                      validatedArea = null;
+                    }
+
                     return _buildPremiumDropdown(
                       hint: "المنطقة",
-                      value: selectedArea,
-                      items: areas.map((a) => a.name).toList(),
+                      value: validatedArea,
+                      items: areaItems,
                       icon: Icons.location_on_rounded,
                       onChanged: (val) async {
-                        selectedArea = val;
+                        // هنا الإصلاح الجوهري: تأكد من أن التحديث يحدث
+                        setState(() {
+                          selectedArea = val;
+                        });
+
                         await PreferencesService.saveLocation(
                             governorate: selectedGovernorate ?? '', area: selectedArea!);
 
-                        // استدعاء الفلترة مع التأثير
                         _filterCategoriesWithEffect();
                       },
                     );
