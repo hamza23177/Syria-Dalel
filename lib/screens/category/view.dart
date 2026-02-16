@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 
 // Imports
@@ -28,6 +29,7 @@ import '../area/bloc.dart';
 import '../area/event.dart';
 import '../area/state.dart';
 import '../contact/view.dart';
+import '../details/view.dart';
 import '../governorate/bloc.dart';
 import '../governorate/event.dart';
 import '../governorate/state.dart';
@@ -1086,153 +1088,185 @@ class PremiumServiceCard extends StatelessWidget {
   final ServiceModel service;
   const PremiumServiceCard({super.key, required this.service});
 
+  // دالة مساعدة للانتقال للتفاصيل لمنع تكرار الكود
+  void _navigateToDetails(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ServiceDetailScreen(serviceId: service.id),
+      ),
+    );
+  }
+
+  // دالة الاتصال
+  Future<void> _makePhoneCall(String phoneNumber) async {
+    final Uri launchUri = Uri(
+      scheme: 'tel',
+      path: phoneNumber,
+    );
+    await launchUrl(launchUri);
+  }
+
   @override
   Widget build(BuildContext context) {
-    // 1. تحديد الصورة الأساسية
+    // تحديد الصورة الأساسية
     final String displayImage = service.imageUrl ??
         service.imageUrl2 ??
         service.imageUrl3 ??
         "";
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16, left: 16, right: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            offset: const Offset(0, 5),
-            blurRadius: 15,
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // 1. قسم الصورة (Header)
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                child: SizedBox(
-                  height: 180,
-                  width: double.infinity,
-                  child: CachedNetworkImage(
-                    imageUrl: displayImage.replaceFirst("http://", "https://"),
-                    fit: BoxFit.cover,
-                    placeholder: (_, __) => Container(color: Colors.grey[100]),
-                    errorWidget: (_, __, ___) => Container(
-                        color: Colors.grey[50],
-                        child: Icon(Icons.broken_image, color: Colors.grey[300])
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                top: 12,
-                left: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.9),
-                    borderRadius: BorderRadius.circular(30),
-                    boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],
-                  ),
-                  child: Text(
-                    service.category,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          // 2. التفاصيل (Body)
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return GestureDetector(
+      // 🔥 1. جعل الكرت بالكامل قابلاً للنقر
+      onTap: () => _navigateToDetails(context),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16, left: 16, right: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              offset: const Offset(0, 5),
+              blurRadius: 15,
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // 1. قسم الصورة (Header)
+            Stack(
               children: [
-                // --- بداية الـ Row الذي كان يسبب المشكلة ---
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        service.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                  child: SizedBox(
+                    height: 180,
+                    width: double.infinity,
+                    // 🔥 2. إضافة Hero Animation لتأثير انتقال ساحر
+                    // يجب أن يتطابق التاج مع الموجود في صفحة التفاصيل (index 0)
+                    child: Hero(
+                      tag: 'service_image_${service.id}_0',
+                      child: CachedNetworkImage(
+                        imageUrl: displayImage.replaceFirst("http://", "https://"),
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(color: Colors.grey[100]),
+                        errorWidget: (_, __, ___) => Container(
+                            color: Colors.grey[50],
+                            child: Icon(Icons.broken_image, color: Colors.grey[300])
                         ),
                       ),
                     ),
-                    // المنطقة
-                    Row(
-                      children: [
-                        Icon(Icons.location_on, color: Colors.grey[400], size: 16),
-                        const SizedBox(width: 4),
-                        Text(
-                          service.area,
-                          style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                  ], // <--- ✅ تم إضافة هذا الإغلاق المفقود
-                ), // <--- ✅ تم إضافة هذا القوس المفقود
-                // --- نهاية الـ Row ---
-
-                const SizedBox(height: 8),
-
-                Text(
-                  service.description ?? "لا يوجد وصف متاح لهذه الخدمة...",
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600], height: 1.5),
+                  ),
                 ),
-                const SizedBox(height: 16),
-
-                // 3. أزرار التفاعل
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          // الانتقال للتفاصيل
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                        child: const Text("عرض التفاصيل", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                Positioned(
+                  top: 12,
+                  left: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: [const BoxShadow(color: Colors.black12, blurRadius: 4)],
+                    ),
+                    child: Text(
+                      service.category,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        fontSize: 12,
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: IconButton(
-                        onPressed: () {
-                          // كود الاتصال
-                        },
-                        icon: const Icon(Icons.phone_in_talk_rounded, color: Colors.green),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ],
             ),
-          ),
-        ],
+
+            // 2. التفاصيل (Body)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          service.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      // المنطقة
+                      Row(
+                        children: [
+                          Icon(Icons.location_on, color: Colors.grey[400], size: 16),
+                          const SizedBox(width: 4),
+                          Text(
+                            service.area,
+                            style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  Text(
+                    service.description ?? "لا يوجد وصف متاح لهذه الخدمة...",
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600], height: 1.5),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // 3. أزرار التفاعل
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          // 🔥 3. تفعيل زر عرض التفاصيل
+                          onPressed: () => _navigateToDetails(context),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: const Text("عرض التفاصيل", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: IconButton(
+                          // 🔥 4. تفعيل زر الاتصال
+                          onPressed: () {
+                            if (service.phone.isNotEmpty) {
+                              _makePhoneCall(service.phone);
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text("رقم الهاتف غير متوفر")),
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.phone_in_talk_rounded, color: Colors.green),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
